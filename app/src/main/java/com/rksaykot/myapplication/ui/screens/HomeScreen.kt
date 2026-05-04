@@ -131,7 +131,7 @@ fun HomeScreen(
                     val roomId = if (myUid < peerUid) "${myUid}_${peerUid}" else "${peerUid}_${myUid}"
                     val lastMsg = viewModel.lastMessages[roomId] ?: user.lastMessage
 
-                    UserItem(user, lastMsg) {
+                    UserItem(user, lastMsg, user.isOnline) {
                         onContactClick(roomId, user.displayName)
                     }
                     Box(modifier = Modifier
@@ -181,7 +181,7 @@ fun HomeScreen(
 }
 
 @Composable
-fun UserItem(user: User, lastMessage: String, onClick: () -> Unit) {
+fun UserItem(user: User, lastMessage: String, isOnline: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -210,7 +210,7 @@ fun UserItem(user: User, lastMessage: String, onClick: () -> Unit) {
                     .size(14.dp)
                     .align(Alignment.BottomEnd)
                     .clip(CircleShape)
-                    .background(if (user.isOnline) Color.Green else Color.Gray)
+                    .background(if (isOnline) Color.Green else Color.Gray)
                     .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
             )
         }

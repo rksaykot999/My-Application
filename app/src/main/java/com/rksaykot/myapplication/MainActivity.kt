@@ -9,10 +9,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -144,7 +145,16 @@ fun AppNavigation(viewModel: ChatViewModel, themeViewModel: ThemeViewModel) {
                 roomId = roomId,
                 displayName = displayName,
                 onBack = { navController.popBackStack() },
+                onDetailsClick = { 
+                    navController.navigate("userDetail")
+                },
                 viewModel = viewModel
+            )
+        }
+        composable("userDetail") {
+            UserDetailScreen(
+                user = viewModel.selectedUserStatus,
+                onBack = { navController.popBackStack() }
             )
         }
     }

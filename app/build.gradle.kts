@@ -1,3 +1,8 @@
+import com.google.firebase.appdistribution.gradle.firebaseAppDistribution
+import java.util.Properties
+import java.io.FileInputStream
+import java.io.FileOutputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -5,33 +10,72 @@ plugins {
     alias(libs.plugins.firebase.appdistribution)
 }
 
+val versionPropsFile = file("version.properties")
+
+fun getAndIncrementVersion(): Pair<Int, String> {
+    val props = Properties()
+    if (versionPropsFile.exists()) {
+        FileInputStream(versionPropsFile).use { props.load(it) }
+    }
+    
+    var currentCode = (props.getProperty("VERSION_CODE", "1").toIntOrNull() ?: 1)
+    var currentName = props.getProperty("VERSION_NAME", "1.0")
+
+    val isBuilding = gradle.startParameter.taskNames.any { 
+        it.contains("assemble", ignoreCase = true) || 
+        it.contains("bundle", ignoreCase = true) ||
+        it.contains("install", ignoreCase = true)
+    }
+
+    if (isBuilding) {
+        currentCode += 1
+        val nextName = (currentName.toDoubleOrNull() ?: 1.0) + 0.1
+        currentName = String.format("%.1f", nextName)
+        
+        props.setProperty("VERSION_CODE", currentCode.toString())
+        props.setProperty("VERSION_NAME", currentName)
+        FileOutputStream(versionPropsFile).use { props.store(it, null) }
+    }
+    
+    return Pair(currentCode, currentName)
+}
+
+val (nextCode, nextName) = getAndIncrementVersion()
+
 android {
     namespace = "com.rksaykot.myapplication"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.rksaykot.myapplication"
         minSdk = 24
-        targetSdk = 36
-        versionCode = 2
-        versionName = "1.1"
+        targetSdk = 35
+        versionCode = nextCode
+        versionName = nextName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
+        debug {
+            firebaseAppDistribution {
+                artifactType = "APK"
+                groups = "testers"
+            }
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            firebaseAppDistribution {
+                artifactType = "APK"
+                groups = "testers"
+            }
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -40,6 +84,16 @@ android {
         compose = true
     }
 }
+
+// অটোমেটিক আপলোড লজিক সাময়িকভাবে বন্ধ রাখা হয়েছে যাতে বিল্ড এরর না হয়
+// আপনি টার্মিনালে 'firebase login' করে এটি পুনরায় চালু করতে পারেন
+/*
+tasks.configureEach {
+    if (name == "assembleRelease") {
+        finalizedBy("appDistributionUploadRelease")
+    }
+}
+*/
 
 dependencies {
     implementation(platform(libs.firebase.bom))

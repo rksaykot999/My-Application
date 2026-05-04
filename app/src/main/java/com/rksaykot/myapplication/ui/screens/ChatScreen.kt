@@ -44,6 +44,7 @@ fun ChatScreen(
     roomId: String, 
     displayName: String,
     onBack: () -> Unit,
+    onDetailsClick: () -> Unit,
     viewModel: ChatViewModel = viewModel()
 ) {
     var messageText by remember { mutableStateOf("") }
@@ -77,7 +78,7 @@ fun ChatScreen(
         topBar = {
             TopAppBar(
                 title = { 
-                    Column {
+                    Column(modifier = Modifier.clickable { onDetailsClick() }) {
                         Text(displayName)
                         if (viewModel.connectionStatus.isNotEmpty()) {
                             Text(
@@ -107,7 +108,7 @@ fun ChatScreen(
                     IconButton(onClick = { 
                         Toast.makeText(context, "Audio Call feature coming soon!", Toast.LENGTH_SHORT).show()
                     }) { Icon(Icons.Default.Call, contentDescription = "Call") }
-                    IconButton(onClick = { }) { Icon(Icons.Default.MoreVert, contentDescription = "More") }
+                    IconButton(onClick = { onDetailsClick() }) { Icon(Icons.Default.MoreVert, contentDescription = "More") }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -122,15 +123,6 @@ fun ChatScreen(
                     .navigationBarsPadding()
                     .imePadding()
             ) {
-                if (viewModel.typingUser != null) {
-                    Text(
-                        text = "${viewModel.typingUser} is typing...",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
-                    )
-                }
-
                 if (replyingToMessage != null) {
                     Row(
                         modifier = Modifier
@@ -192,10 +184,7 @@ fun ChatScreen(
                         }
                         TextField(
                             value = messageText,
-                            onValueChange = { 
-                                messageText = it 
-                                viewModel.setTypingStatus(roomId, it.isNotEmpty())
-                            },
+                            onValueChange = { messageText = it },
                             modifier = Modifier.weight(1f),
                             placeholder = { Text("Type a message...") },
                             maxLines = 4

@@ -20,15 +20,13 @@ import java.util.UUID
 class ChatViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-    // সরাসরি বাকেট ইউআরএল ব্যবহার করছি যাতে পাথ খুঁজে পেতে সমস্যা না হয়
-    private val storage = FirebaseStorage.getInstance("gs://my-application-8b96b.firebasestorage.app")
+    private val storage = FirebaseStorage.getInstance()
     
     var currentUser by mutableStateOf<User?>(null)
     val users = mutableStateListOf<User>()
     val messages = mutableStateListOf<Message>()
     val lastMessages = mutableStateMapOf<String, String>() // roomId -> lastMessage
     var connectionStatus by mutableStateOf("")
-    var typingUser by mutableStateOf<String?>(null)
     var selectedUserStatus by mutableStateOf<User?>(null)
 
     init {
@@ -148,13 +146,6 @@ class ChatViewModel : ViewModel() {
                 }
         }
 
-        db.collection("rooms").document(roomName)
-            .addSnapshotListener { snapshot, _ ->
-                val typingMap = snapshot?.get("typing") as? Map<String, Boolean>
-                typingUser = typingMap?.filter { it.value && it.key != auth.currentUser?.uid }
-                    ?.keys?.firstOrNull()?.let { "Someone" }
-            }
-
         db.collection("rooms").document(roomName).collection("messages")
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, e ->
@@ -167,9 +158,14 @@ class ChatViewModel : ViewModel() {
                     messages.clear()
                     for (doc in snapshot.documents) {
                         val senderId = doc.getString("senderId")
+                        val seen = doc.getBoolean("isSeen") ?: false
+                        val delivered = doc.getBoolean("isDelivered") ?: false
+                        
                         val msg = doc.toObject(Message::class.java)?.copy(
                             id = doc.id,
-                            isMe = senderId == auth.currentUser?.uid
+                            isMe = senderId == auth.currentUser?.uid,
+                            isSeen = seen,
+                            isDelivered = delivered
                         )
                         if (msg != null) {
                             messages.add(msg)
@@ -290,11 +286,5 @@ class ChatViewModel : ViewModel() {
     fun logout() {
         setUserOnline(false)
         auth.signOut()
-    }
-
-    fun setTypingStatus(roomName: String, isTyping: Boolean) {
-        val uid = auth.currentUser?.uid ?: return
-        db.collection("rooms").document(roomName)
-            .update("typing.$uid", isTyping)
     }
 }

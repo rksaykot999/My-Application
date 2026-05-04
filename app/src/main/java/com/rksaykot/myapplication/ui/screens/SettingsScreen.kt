@@ -123,7 +123,7 @@ fun SettingsScreen(
                             text = "Download Latest APK",
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.clickable { 
-                                uriHandler.openUri("https://console.firebase.google.com/u/0/project/my-application-8b96b/appdistribution/app/android:com.rksaykot.myapplication/releases")
+                                uriHandler.openUri("https://drive.google.com/drive/folders/1NoSBuYJNoy-RCSNBXjJQStKQhvAVCl8t?usp=drive_link")
                             }
                         )
                     }
