@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.appdistribution)
 }
 
 android {
@@ -47,6 +48,7 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
     implementation(libs.firebase.messaging)
+    implementation(libs.firebase.appdistribution)
     implementation(libs.play.services.auth)
     implementation(libs.coil.compose)
 

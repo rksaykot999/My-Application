@@ -35,11 +35,13 @@ firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-storage = { group = "com.google.firebase", name = "firebase-storage" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
+firebase-appdistribution = { group = "com.google.firebase", name = "firebase-appdistribution", version = "16.0.0-beta18" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version = "21.0.0" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version = "2.6.0" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+firebase-appdistribution = { id = "com.google.firebase.appdistribution", version = "5.2.1" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 
