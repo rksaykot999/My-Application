@@ -2,6 +2,7 @@ package com.rksaykot.myapplication.viewmodel
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
@@ -12,16 +13,23 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
+import com.google.firebase.storage.FirebaseStorage
+import android.net.Uri
+import java.util.UUID
 
 class ChatViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    // সরাসরি বাকেট ইউআরএল ব্যবহার করছি যাতে পাথ খুঁজে পেতে সমস্যা না হয়
+    private val storage = FirebaseStorage.getInstance("gs://my-application-8b96b.firebasestorage.app")
     
     var currentUser by mutableStateOf<User?>(null)
     val users = mutableStateListOf<User>()
     val messages = mutableStateListOf<Message>()
+    val lastMessages = mutableStateMapOf<String, String>() // roomId -> lastMessage
     var connectionStatus by mutableStateOf("")
     var typingUser by mutableStateOf<String?>(null)
+    var selectedUserStatus by mutableStateOf<User?>(null)
 
     init {
         auth.addAuthStateListener { firebaseAuth ->
@@ -36,7 +44,6 @@ class ChatViewModel : ViewModel() {
                 setUserOnline(true)
                 user
             } else {
-                setUserOnline(false)
                 null
             }
         }
@@ -46,7 +53,7 @@ class ChatViewModel : ViewModel() {
         db.collection("users").document(user.uid).set(user, com.google.firebase.firestore.SetOptions.merge())
     }
 
-    private fun setUserOnline(isOnline: Boolean) {
+    fun setUserOnline(isOnline: Boolean) {
         val uid = auth.currentUser?.uid ?: return
         db.collection("users").document(uid).update(
             "isOnline", isOnline,
@@ -91,14 +98,28 @@ class ChatViewModel : ViewModel() {
     }
 
     fun fetchAllUsers() {
+        val myUid = auth.currentUser?.uid ?: return
         db.collection("users").addSnapshotListener { snapshot, e ->
             if (e != null || snapshot == null) return@addSnapshotListener
             users.clear()
             for (doc in snapshot.documents) {
                 val user = doc.toObject(User::class.java)
-                if (user != null && user.uid != auth.currentUser?.uid) {
+                if (user != null && user.uid != myUid) {
                     users.add(user)
+                    // Listen to last message for this specific chat
+                    val peerUid = user.uid
+                    val roomId = if (myUid < peerUid) "${myUid}_${peerUid}" else "${peerUid}_${myUid}"
+                    listenToRoomMetadata(roomId)
                 }
+            }
+        }
+    }
+
+    private fun listenToRoomMetadata(roomId: String) {
+        db.collection("rooms").document(roomId).addSnapshotListener { snapshot, _ ->
+            val lastMsg = snapshot?.getString("lastMessage")
+            if (lastMsg != null) {
+                lastMessages[roomId] = lastMsg
             }
         }
     }
@@ -116,6 +137,17 @@ class ChatViewModel : ViewModel() {
     }
 
     fun listenToMessages(roomName: String) {
+        // Find peer UID from room name (format: uid1_uid2)
+        val myUid = auth.currentUser?.uid ?: ""
+        val peerUid = roomName.split("_").find { it != myUid }
+        
+        if (peerUid != null) {
+            db.collection("users").document(peerUid)
+                .addSnapshotListener { snapshot, _ ->
+                    selectedUserStatus = snapshot?.toObject(User::class.java)
+                }
+        }
+
         db.collection("rooms").document(roomName)
             .addSnapshotListener { snapshot, _ ->
                 val typingMap = snapshot?.get("typing") as? Map<String, Boolean>
@@ -155,13 +187,64 @@ class ChatViewModel : ViewModel() {
             .document(messageId).update("isSeen", true, "isDelivered", true)
     }
 
-    fun sendMessage(roomName: String, text: String, replyToId: String? = null) {
+    fun updateDisplayName(newName: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        val user = auth.currentUser ?: return
+        val profileUpdates = com.google.firebase.auth.userProfileChangeRequest {
+            displayName = newName
+        }
+        user.updateProfile(profileUpdates).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                db.collection("users").document(user.uid).update("displayName", newName)
+                    .addOnSuccessListener {
+                        currentUser = currentUser?.copy(displayName = newName)
+                        onSuccess()
+                    }
+                    .addOnFailureListener { onError(it.message ?: "Failed to update Firestore") }
+            } else {
+                onError(task.exception?.message ?: "Failed to update profile")
+            }
+        }
+    }
+
+    fun uploadImage(uri: Uri, path: String, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
+        val fileName = UUID.randomUUID().toString()
+        val ref = storage.reference.child(path).child(fileName)
+        
+        ref.putFile(uri)
+            .continueWithTask { task ->
+                if (!task.isSuccessful) {
+                    task.exception?.let { throw it }
+                }
+                ref.downloadUrl
+            }
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val downloadUri = task.result
+                    onSuccess(downloadUri.toString())
+                } else {
+                    onError(task.exception?.message ?: "Upload failed: Object could not be created")
+                }
+            }
+    }
+
+    fun updateProfileImage(imageUrl: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        val uid = auth.currentUser?.uid ?: return
+        db.collection("users").document(uid).update("profileImageUrl", imageUrl)
+            .addOnSuccessListener {
+                currentUser = currentUser?.copy(profileImageUrl = imageUrl)
+                onSuccess()
+            }
+            .addOnFailureListener { onError(it.message ?: "Failed to update profile image") }
+    }
+
+    fun sendMessage(roomName: String, text: String, imageUrl: String? = null, replyToId: String? = null) {
         val user = auth.currentUser ?: return
         val now = Timestamp.now()
         val messageData = hashMapOf(
             "senderId" to user.uid,
             "senderName" to (user.displayName ?: "Anonymous"),
             "text" to text,
+            "imageUrl" to imageUrl,
             "timestamp" to now,
             "isSeen" to false,
             "isDelivered" to false,
@@ -171,8 +254,18 @@ class ChatViewModel : ViewModel() {
         db.collection("rooms").document(roomName).collection("messages")
             .add(messageData)
 
+        // Update room metadata for last message
+        val lastMsgText = if (imageUrl != null && text.isEmpty()) "Sent an image" else text
+        db.collection("rooms").document(roomName).set(
+            mapOf(
+                "lastMessage" to lastMsgText,
+                "lastMessageTime" to now
+            ),
+            com.google.firebase.firestore.SetOptions.merge()
+        )
+
         db.collection("users").document(user.uid).update(
-            "lastMessage", text,
+            "lastMessage", lastMsgText,
             "lastMessageTime", now.seconds * 1000
         )
     }

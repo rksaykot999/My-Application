@@ -9,7 +9,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -33,11 +36,25 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         
         askNotificationPermission()
-        checkForUpdates()
         
         setContent {
             val themeViewModel: ThemeViewModel = viewModel()
             val chatViewModel: ChatViewModel = viewModel()
+            val lifecycleOwner = LocalLifecycleOwner.current
+
+            DisposableEffect(lifecycleOwner) {
+                val observer = LifecycleEventObserver { _, event ->
+                    when (event) {
+                        Lifecycle.Event.ON_START -> chatViewModel.setUserOnline(true)
+                        Lifecycle.Event.ON_STOP -> chatViewModel.setUserOnline(false)
+                        else -> {}
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose {
+                    lifecycleOwner.lifecycle.removeObserver(observer)
+                }
+            }
             
             LaunchedEffect(Unit) {
                 FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
@@ -51,16 +68,6 @@ class MainActivity : ComponentActivity() {
                 AppNavigation(chatViewModel, themeViewModel)
             }
         }
-    }
-
-    private fun checkForUpdates() {
-        FirebaseAppDistribution.getInstance().updateIfNewReleaseAvailable()
-            .addOnFailureListener { e ->
-                // Handle failure
-            }
-            .addOnSuccessListener {
-                // Check complete
-            }
     }
 
     private fun askNotificationPermission() {

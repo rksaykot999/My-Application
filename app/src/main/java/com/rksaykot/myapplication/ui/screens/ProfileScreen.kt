@@ -1,6 +1,10 @@
 package com.rksaykot.myapplication.ui.screens
 
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -34,6 +39,27 @@ fun ProfileScreen(
     
     var showEditNameDialog by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf(user?.displayName ?: "") }
+    var isUploading by remember { mutableStateOf(false) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            isUploading = true
+            viewModel.uploadImage(it, "profile_images", { url ->
+                viewModel.updateProfileImage(url, {
+                    isUploading = false
+                    Toast.makeText(context, "Profile photo updated!", Toast.LENGTH_SHORT).show()
+                }, { error ->
+                    isUploading = false
+                    Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                })
+            }, { error ->
+                isUploading = false
+                Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+            })
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -68,7 +94,8 @@ fun ProfileScreen(
                             AsyncImage(
                                 model = user.profileImageUrl,
                                 contentDescription = "Profile Image",
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
                             )
                         } else {
                             Box(contentAlignment = Alignment.Center) {
@@ -79,9 +106,18 @@ fun ProfileScreen(
                                 )
                             }
                         }
+                        
+                        if (isUploading) {
+                            Box(
+                                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(color = Color.White)
+                            }
+                        }
                     }
                     FloatingActionButton(
-                        onClick = { Toast.makeText(context, "Image upload coming soon!", Toast.LENGTH_SHORT).show() },
+                        onClick = { imagePickerLauncher.launch("image/*") },
                         modifier = Modifier.size(40.dp),
                         shape = CircleShape,
                         containerColor = MaterialTheme.colorScheme.primary
@@ -148,9 +184,12 @@ fun ProfileScreen(
                 },
                 confirmButton = {
                     Button(onClick = {
-                        // In a real app, call viewModel to update Firestore
-                        Toast.makeText(context, "Name updated locally!", Toast.LENGTH_SHORT).show()
-                        showEditNameDialog = false
+                        viewModel.updateDisplayName(newName, {
+                            showEditNameDialog = false
+                            Toast.makeText(context, "Name updated!", Toast.LENGTH_SHORT).show()
+                        }, { error ->
+                            Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                        })
                     }) { Text("Save") }
                 },
                 dismissButton = {

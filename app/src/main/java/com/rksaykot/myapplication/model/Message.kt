@@ -7,6 +7,7 @@ data class Message(
     val senderId: String = "",
     val senderName: String = "",
     val text: String = "",
+    val imageUrl: String? = null,
     val timestamp: Timestamp? = null,
     val isMe: Boolean = false,
     val isDelivered: Boolean = false,

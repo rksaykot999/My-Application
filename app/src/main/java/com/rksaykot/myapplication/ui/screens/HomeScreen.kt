@@ -126,10 +126,12 @@ fun HomeScreen(
         } else {
             LazyColumn(modifier = Modifier.padding(innerPadding)) {
                 items(filteredUsers) { user ->
-                    UserItem(user) {
-                        val myUid = viewModel.currentUser?.uid ?: ""
-                        val peerUid = user.uid
-                        val roomId = if (myUid < peerUid) "${myUid}_${peerUid}" else "${peerUid}_${myUid}"
+                    val myUid = viewModel.currentUser?.uid ?: ""
+                    val peerUid = user.uid
+                    val roomId = if (myUid < peerUid) "${myUid}_${peerUid}" else "${peerUid}_${myUid}"
+                    val lastMsg = viewModel.lastMessages[roomId] ?: user.lastMessage
+
+                    UserItem(user, lastMsg) {
                         onContactClick(roomId, user.displayName)
                     }
                     Box(modifier = Modifier
@@ -179,7 +181,7 @@ fun HomeScreen(
 }
 
 @Composable
-fun UserItem(user: User, onClick: () -> Unit) {
+fun UserItem(user: User, lastMessage: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -218,7 +220,7 @@ fun UserItem(user: User, onClick: () -> Unit) {
         Column(modifier = Modifier.weight(1f)) {
             Text(text = user.displayName, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
             Text(
-                text = if (user.lastMessage.isNotEmpty()) user.lastMessage else "Tap to chat",
+                text = if (lastMessage.isNotEmpty()) lastMessage else "Tap to chat",
                 color = Color.Gray,
                 fontSize = 14.sp,
                 maxLines = 1,

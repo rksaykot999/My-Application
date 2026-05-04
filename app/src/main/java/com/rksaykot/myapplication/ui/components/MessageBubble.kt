@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.rksaykot.myapplication.model.Message
 import java.text.SimpleDateFormat
 import java.util.*
@@ -136,11 +137,25 @@ fun MessageBubble(
                         }
                     }
 
-                    Text(
-                        text = message.text,
-                        color = contentColor,
-                        fontSize = 16.sp
-                    )
+                    if (message.imageUrl != null) {
+                        AsyncImage(
+                            model = message.imageUrl,
+                            contentDescription = "Message Image",
+                            modifier = Modifier
+                                .padding(bottom = 8.dp)
+                                .fillMaxWidth()
+                                .heightIn(max = 200.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                        )
+                    }
+
+                    if (message.text.isNotEmpty()) {
+                        Text(
+                            text = message.text,
+                            color = contentColor,
+                            fontSize = 16.sp
+                        )
+                    }
 
                     Row(
                         modifier = Modifier.align(Alignment.End),

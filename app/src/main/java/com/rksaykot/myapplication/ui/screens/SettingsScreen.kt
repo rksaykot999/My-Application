@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rksaykot.myapplication.viewmodel.ThemeViewModel
@@ -27,7 +28,10 @@ fun SettingsScreen(
 ) {
     var notificationsEnabled by remember { mutableStateOf(true) }
     var soundEnabled by remember { mutableStateOf(true) }
+    var showVersionDialog by remember { mutableStateOf(false) }
+    
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
 
     Scaffold(
         topBar = {
@@ -98,13 +102,36 @@ fun SettingsScreen(
                 SettingsHeader("About")
                 SettingsClickItem(
                     title = "App Version",
-                    subtitle = "1.0.0 (Stable)",
+                    subtitle = "1.1 (Build 2)",
                     icon = Icons.Default.Info,
-                    onClick = { 
-                        Toast.makeText(context, "You are using the latest version.", Toast.LENGTH_SHORT).show()
-                    }
+                    onClick = { showVersionDialog = true }
                 )
             }
+        }
+
+        if (showVersionDialog) {
+            AlertDialog(
+                onDismissRequest = { showVersionDialog = false },
+                title = { Text("App Update Info") },
+                text = {
+                    Column {
+                        Text("A new version might be available with better performance and new features.")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Latest Version: 1.1 (2)", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Download Latest APK",
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickable { 
+                                uriHandler.openUri("https://console.firebase.google.com/u/0/project/my-application-8b96b/appdistribution/app/android:com.rksaykot.myapplication/releases")
+                            }
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showVersionDialog = false }) { Text("Close") }
+                }
+            )
         }
     }
 }
