@@ -1,6 +1,9 @@
 package com.rksaykot.myapplication
 
 import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -36,6 +39,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         
+        createNotificationChannel()
         askNotificationPermission()
         
         setContent {
@@ -80,7 +84,25 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelId = "chat_messages"
+            val name = "Chat Messages"
+            val descriptionText = "Notifications for new chat messages"
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel(channelId, name, importance).apply {
+                description = descriptionText
+                enableLights(true)
+                enableVibration(true)
+            }
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
 }
+
 
 @Composable
 fun AppNavigation(viewModel: ChatViewModel, themeViewModel: ThemeViewModel) {

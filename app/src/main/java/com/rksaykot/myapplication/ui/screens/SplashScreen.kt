@@ -63,14 +63,14 @@ fun SplashScreen(onNext: () -> Unit) {
             )
             
             Spacer(modifier = Modifier.height(10.dp))
-            
+
             Text(
                 text = "A special messaging space for Shawon and Saykot.",
                 style = MaterialTheme.typography.bodyLarge,
                 fontSize = 30.sp,
                 fontFamily = FontFamily.Cursive,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onPrimary,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .padding(horizontal = 30.dp)
