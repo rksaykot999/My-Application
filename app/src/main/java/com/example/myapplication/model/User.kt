@@ -5,5 +5,7 @@ data class User(
     val displayName: String = "",
     val email: String = "",
     val profileImageUrl: String = "",
-    val bio: String = ""
+    val bio: String = "",
+    val lastMessage: String = "",
+    val lastMessageTime: Long = 0
 )

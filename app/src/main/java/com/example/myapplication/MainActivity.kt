@@ -11,26 +11,32 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.rksaykot.myapplication.ui.screens.ChatScreen
 import com.rksaykot.myapplication.ui.screens.HomeScreen
+import com.rksaykot.myapplication.ui.screens.LanguageScreen
+import com.rksaykot.myapplication.ui.screens.PrivacyPolicyScreen
+import com.rksaykot.myapplication.ui.screens.ProfileScreen
+import com.rksaykot.myapplication.ui.screens.SettingsScreen
 import com.rksaykot.myapplication.ui.screens.SplashScreen
 import com.rksaykot.myapplication.ui.screens.auth.LoginScreen
 import com.rksaykot.myapplication.ui.theme.MyApplicationTheme
 import com.rksaykot.myapplication.viewmodel.ChatViewModel
+import com.rksaykot.myapplication.viewmodel.ThemeViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MyApplicationTheme {
+            val themeViewModel: ThemeViewModel = viewModel()
+            MyApplicationTheme(darkTheme = themeViewModel.isDarkMode) {
                 val viewModel: ChatViewModel = viewModel()
-                AppNavigation(viewModel)
+                AppNavigation(viewModel, themeViewModel)
             }
         }
     }
 }
 
 @Composable
-fun AppNavigation(viewModel: ChatViewModel) {
+fun AppNavigation(viewModel: ChatViewModel, themeViewModel: ThemeViewModel) {
     val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = "splash") {
@@ -59,8 +65,31 @@ fun AppNavigation(viewModel: ChatViewModel) {
                         popUpTo("home") { inclusive = true }
                     }
                 },
+                onSettingsClick = {
+                    navController.navigate("settings")
+                },
+                onProfileClick = {
+                    navController.navigate("profile")
+                },
                 viewModel = viewModel
             )
+        }
+        composable("profile") {
+            ProfileScreen(onBack = { navController.popBackStack() })
+        }
+        composable("settings") {
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToPrivacy = { navController.navigate("privacy") },
+                onNavigateToLanguage = { navController.navigate("language") },
+                themeViewModel = themeViewModel
+            )
+        }
+        composable("privacy") {
+            PrivacyPolicyScreen(onBack = { navController.popBackStack() })
+        }
+        composable("language") {
+            LanguageScreen(onBack = { navController.popBackStack() })
         }
         composable("chat/{roomId}/{displayName}") { backStackEntry ->
             val roomId = backStackEntry.arguments?.getString("roomId") ?: "default_room"

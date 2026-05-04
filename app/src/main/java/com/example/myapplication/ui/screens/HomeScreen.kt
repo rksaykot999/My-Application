@@ -1,5 +1,7 @@
 package com.rksaykot.myapplication.ui.screens
 
+import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -7,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -15,7 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -27,25 +32,63 @@ import com.rksaykot.myapplication.viewmodel.ChatViewModel
 fun HomeScreen(
     onContactClick: (String, String) -> Unit, // roomId, displayName
     onLogout: () -> Unit,
+    onSettingsClick: () -> Unit,
+    onProfileClick: () -> Unit,
     viewModel: ChatViewModel = viewModel()
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
     var friendEmail by remember { mutableStateOf("") }
+    var isSearchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    
+    val context = LocalContext.current
     
     LaunchedEffect(Unit) {
         viewModel.fetchAllUsers()
+    }
+
+    val filteredUsers = if (searchQuery.isEmpty()) {
+        viewModel.users
+    } else {
+        viewModel.users.filter { 
+            it.displayName.contains(searchQuery, ignoreCase = true) || 
+            it.email.contains(searchQuery, ignoreCase = true) 
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { 
-                    val name = viewModel.currentUser?.displayName ?: "User"
-                    Text("Chat with $name", fontWeight = FontWeight.Bold) 
+                    if (isSearchActive) {
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text("Search friends...") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            )
+                        )
+                    } else {
+                        Text(text = "Chat with Best Friend", fontWeight = FontWeight.Bold)
+                    }
                 },
                 actions = {
-                    IconButton(onClick = { }) { Icon(Icons.Default.Search, contentDescription = "Search") }
+                    IconButton(onClick = { 
+                        isSearchActive = !isSearchActive 
+                        if (!isSearchActive) searchQuery = ""
+                    }) { 
+                        Icon(
+                            imageVector = if (isSearchActive) Icons.Default.Close else Icons.Default.Search, 
+                            contentDescription = if (isSearchActive) "Close Search" else "Search"
+                        ) 
+                    }
                     Box {
                         IconButton(onClick = { showMenu = true }) { 
                             Icon(Icons.Default.MoreVert, contentDescription = "Settings") 
@@ -54,8 +97,20 @@ fun HomeScreen(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false }
                         ) {
-                            DropdownMenuItem(text = { Text("Profile") }, onClick = { showMenu = false })
-                            DropdownMenuItem(text = { Text("Settings") }, onClick = { showMenu = false })
+                            DropdownMenuItem(
+                                text = { Text("Profile") }, 
+                                onClick = { 
+                                    showMenu = false
+                                    onProfileClick()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Settings") }, 
+                                onClick = { 
+                                    showMenu = false
+                                    onSettingsClick()
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text("Logout", color = Color.Red) },
                                 onClick = { 
@@ -79,9 +134,13 @@ fun HomeScreen(
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Text("No friends yet. Add one by email!", color = Color.Gray)
             }
+        } else if (filteredUsers.isEmpty() && searchQuery.isNotEmpty()) {
+            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                Text("No users found for '$searchQuery'", color = Color.Gray)
+            }
         } else {
             LazyColumn(modifier = Modifier.padding(innerPadding)) {
-                items(viewModel.users) { user ->
+                items(filteredUsers) { user ->
                     UserItem(user) {
                         // Generate a simple room ID based on both UIDs
                         val myUid = viewModel.currentUser?.uid ?: ""
@@ -89,7 +148,13 @@ fun HomeScreen(
                         val roomId = if (myUid < peerUid) "${myUid}_${peerUid}" else "${peerUid}_${myUid}"
                         onContactClick(roomId, user.displayName)
                     }
-                    HorizontalDivider(modifier = Modifier.padding(start = 72.dp), thickness = 0.5.dp, color = Color.LightGray)
+                    // Bottom border instead of a generic HorizontalDivider for a cleaner look
+                    Box(modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 72.dp, end = 16.dp)
+                        .height(0.5.dp)
+                        .background(MaterialTheme.colorScheme.outlineVariant)
+                    )
                 }
             }
         }
@@ -117,7 +182,9 @@ fun HomeScreen(
                                 onContactClick(roomId, user.displayName)
                                 showAddDialog = false
                             },
-                            onError = { /* Show error toast/text */ }
+                            onError = { 
+                                Toast.makeText(context, "User not found with this email", Toast.LENGTH_SHORT).show()
+                            }
                         )
                     }) { Text("Add") }
                 },
@@ -157,7 +224,13 @@ fun UserItem(user: User, onClick: () -> Unit) {
 
         Column(modifier = Modifier.weight(1f)) {
             Text(text = user.displayName, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-            Text(text = "Tap to chat", color = Color.Gray, fontSize = 14.sp)
+            Text(
+                text = if (user.lastMessage.isNotEmpty()) user.lastMessage else "Tap to chat",
+                color = Color.Gray,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

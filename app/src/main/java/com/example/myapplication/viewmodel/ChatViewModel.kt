@@ -20,20 +20,28 @@ class ChatViewModel : ViewModel() {
     val users = mutableStateListOf<User>()
     val messages = mutableStateListOf<Message>()
     var connectionStatus by mutableStateOf("")
+    var typingUser by mutableStateOf<String?>(null)
 
     init {
         auth.addAuthStateListener { firebaseAuth ->
             val firebaseUser = firebaseAuth.currentUser
             currentUser = if (firebaseUser != null) {
-                User(
+                val user = User(
                     uid = firebaseUser.uid,
                     displayName = firebaseUser.displayName ?: "User",
                     email = firebaseUser.email ?: ""
                 )
+                // Ensure user exists in Firestore on every auth state change
+                saveUserToFirestore(user)
+                user
             } else {
                 null
             }
         }
+    }
+
+    private fun saveUserToFirestore(user: User) {
+        db.collection("users").document(user.uid).set(user)
     }
 
     fun login(email: String, pass: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
@@ -94,6 +102,17 @@ class ChatViewModel : ViewModel() {
     }
 
     fun listenToMessages(roomName: String) {
+        // Listen to typing status
+        db.collection("rooms").document(roomName)
+            .addSnapshotListener { snapshot, _ ->
+                val typingMap = snapshot?.get("typing") as? Map<String, Boolean>
+                typingUser = typingMap?.filter { it.value && it.key != auth.currentUser?.uid }
+                    ?.keys?.firstOrNull()?.let { uid ->
+                        // In a real app, you'd fetch the name. For now, we'll show "Someone is typing"
+                        "Someone"
+                    }
+            }
+
         db.collection("rooms").document(roomName).collection("messages")
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, e ->
@@ -128,20 +147,45 @@ class ChatViewModel : ViewModel() {
 
     fun sendMessage(roomName: String, text: String, replyToId: String? = null) {
         val user = auth.currentUser ?: return
+        val now = Timestamp.now()
         val messageData = hashMapOf(
             "senderId" to user.uid,
             "senderName" to (user.displayName ?: "Anonymous"),
             "text" to text,
-            "timestamp" to Timestamp.now(),
+            "timestamp" to now,
             "isSeen" to false,
             "replyToId" to replyToId
         )
         
         db.collection("rooms").document(roomName).collection("messages")
             .add(messageData)
+
+        // Update current user's last message in Firestore users collection
+        db.collection("users").document(user.uid).update(
+            "lastMessage", text,
+            "lastMessageTime", now.seconds * 1000
+        )
+    }
+
+    fun addReaction(roomName: String, messageId: String, emoji: String) {
+        val userId = auth.currentUser?.uid ?: return
+        db.collection("rooms").document(roomName).collection("messages")
+            .document(messageId).update("reactions.$userId", emoji)
+    }
+
+    fun removeReaction(roomName: String, messageId: String) {
+        val userId = auth.currentUser?.uid ?: return
+        db.collection("rooms").document(roomName).collection("messages")
+            .document(messageId).update("reactions.$userId", com.google.firebase.firestore.FieldValue.delete())
     }
 
     fun logout() {
         auth.signOut()
+    }
+
+    fun setTypingStatus(roomName: String, isTyping: Boolean) {
+        val uid = auth.currentUser?.uid ?: return
+        db.collection("rooms").document(roomName)
+            .update("typing.$uid", isTyping)
     }
 }
