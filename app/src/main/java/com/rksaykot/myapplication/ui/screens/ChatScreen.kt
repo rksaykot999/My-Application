@@ -10,30 +10,20 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.VideoCall
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
 import com.rksaykot.myapplication.model.Message
 import com.rksaykot.myapplication.ui.components.MessageBubble
 import com.rksaykot.myapplication.viewmodel.ChatViewModel
@@ -50,28 +40,29 @@ fun ChatScreen(
     var messageText by remember { mutableStateOf("") }
     var replyingToMessage by remember { mutableStateOf<Message?>(null) }
     var showOptionsDialog by remember { mutableStateOf<Message?>(null) }
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var isUploading by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf<Message?>(null) }
+    var editText by remember { mutableStateOf("") }
+    var showMenu by remember { mutableStateOf(false) }
     
     val messages = viewModel.messages
     val context = LocalContext.current
     val listState = rememberLazyListState()
 
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        selectedImageUri = uri
+    val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            viewModel.uploadImage(it, "chat_images", 
+                onSuccess = { url ->
+                    viewModel.sendMessage(roomId, "", imageUrl = url)
+                },
+                onError = { error ->
+                    Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
     }
 
     LaunchedEffect(roomId) {
         viewModel.listenToMessages(roomId)
-    }
-
-    // Auto-scroll to bottom when new messages arrive
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
-        }
     }
 
     Scaffold(
@@ -80,20 +71,12 @@ fun ChatScreen(
                 title = { 
                     Column(modifier = Modifier.clickable { onDetailsClick() }) {
                         Text(displayName)
-                        if (viewModel.connectionStatus.isNotEmpty()) {
-                            Text(
-                                text = viewModel.connectionStatus,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (viewModel.connectionStatus.contains("Error")) Color.Red else Color.Green
-                            )
-                        } else {
-                            val isOnline = viewModel.selectedUserStatus?.isOnline == true
-                            Text(
-                                text = if (isOnline) "Online" else "Offline",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (isOnline) Color.Green else Color.Gray
-                            )
-                        }
+                        val status = viewModel.selectedUserStatus
+                        Text(
+                            text = if (status?.isOnline == true) "Online" else "Offline",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (status?.isOnline == true) Color.Green else Color.Gray
+                        )
                     }
                 },
                 navigationIcon = {
@@ -103,12 +86,25 @@ fun ChatScreen(
                 },
                 actions = {
                     IconButton(onClick = { 
-                        Toast.makeText(context, "Video Call feature coming soon!", Toast.LENGTH_SHORT).show()
-                    }) { Icon(Icons.Default.VideoCall, contentDescription = "Video Call") }
-                    IconButton(onClick = { 
                         Toast.makeText(context, "Audio Call feature coming soon!", Toast.LENGTH_SHORT).show()
                     }) { Icon(Icons.Default.Call, contentDescription = "Call") }
-                    IconButton(onClick = { onDetailsClick() }) { Icon(Icons.Default.MoreVert, contentDescription = "More") }
+                    Box {
+                        IconButton(onClick = { showMenu = true }) { 
+                            Icon(Icons.Default.MoreVert, contentDescription = "More") 
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Clear Message History") },
+                                onClick = {
+                                    showMenu = false
+                                    viewModel.clearChatHistory(roomId)
+                                }
+                            )
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -123,6 +119,15 @@ fun ChatScreen(
                     .navigationBarsPadding()
                     .imePadding()
             ) {
+                if (viewModel.typingUser != null) {
+                    Text(
+                        text = "Someone is typing...",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
+                    )
+                }
+
                 if (replyingToMessage != null) {
                     Row(
                         modifier = Modifier
@@ -150,28 +155,6 @@ fun ChatScreen(
                     }
                 }
 
-                if (selectedImageUri != null) {
-                    Box(modifier = Modifier.padding(8.dp)) {
-                        AsyncImage(
-                            model = selectedImageUri,
-                            contentDescription = "Selected Image",
-                            modifier = Modifier
-                                .size(100.dp)
-                                .clip(RoundedCornerShape(8.dp)),
-                            contentScale = ContentScale.Crop
-                        )
-                        IconButton(
-                            onClick = { selectedImageUri = null },
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .size(24.dp)
-                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                        ) {
-                            Icon(Icons.Default.Close, contentDescription = "Remove Image", tint = Color.White, modifier = Modifier.size(16.dp))
-                        }
-                    }
-                }
-
                 Surface(tonalElevation = 3.dp) {
                     Row(
                         modifier = Modifier
@@ -179,59 +162,52 @@ fun ChatScreen(
                             .padding(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
-                            Icon(Icons.Default.Image, contentDescription = "Pick Image")
+                        IconButton(onClick = { imageLauncher.launch("image/*") }) { 
+                            Icon(Icons.Default.Image, contentDescription = "Send Image", tint = MaterialTheme.colorScheme.primary) 
                         }
+                        
                         TextField(
                             value = messageText,
-                            onValueChange = { messageText = it },
+                            onValueChange = { 
+                                messageText = it 
+                                viewModel.setTypingStatus(roomId, it.isNotEmpty())
+                            },
                             modifier = Modifier.weight(1f),
                             placeholder = { Text("Type a message...") },
-                            maxLines = 4
+                            maxLines = 4,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent
+                            )
                         )
-                        if (isUploading) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp).padding(4.dp))
-                        } else {
-                            IconButton(
-                                onClick = {
-                                    if (messageText.isNotBlank() || selectedImageUri != null) {
-                                        if (selectedImageUri != null) {
-                                            isUploading = true
-                                            viewModel.uploadImage(selectedImageUri!!, "chat_images", { url ->
-                                                viewModel.sendMessage(roomId, messageText, url, replyingToMessage?.id)
-                                                messageText = ""
-                                                selectedImageUri = null
-                                                replyingToMessage = null
-                                                isUploading = false
-                                            }, { error ->
-                                                isUploading = false
-                                                Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
-                                            })
-                                        } else {
-                                            viewModel.sendMessage(roomId, messageText, null, replyingToMessage?.id)
-                                            messageText = ""
-                                            replyingToMessage = null
-                                        }
-                                    }
+                        IconButton(
+                            onClick = {
+                                if (messageText.isNotBlank()) {
+                                    viewModel.sendMessage(roomId, messageText, replyToId = replyingToMessage?.id)
+                                    messageText = ""
+                                    replyingToMessage = null
+                                    viewModel.setTypingStatus(roomId, false)
                                 }
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
                             }
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
             }
         }
     ) { innerPadding ->
+        // Using reverseLayout = true to make it open at the bottom naturally
+        val reversedMessages = messages.reversed()
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
             state = listState,
-            reverseLayout = false,
+            reverseLayout = true,
             contentPadding = PaddingValues(8.dp)
         ) {
-            items(messages) { message ->
+            items(reversedMessages) { message ->
                 val replyText = messages.find { it.id == message.replyToId }?.text
                 MessageBubble(
                     message = message,
@@ -241,6 +217,10 @@ fun ChatScreen(
                     },
                     onLongClick = { clickedMessage ->
                         showOptionsDialog = clickedMessage
+                    },
+                    onProfileClick = { uid ->
+                        viewModel.fetchUserInfo(uid)
+                        onDetailsClick()
                     }
                 )
             }
@@ -286,6 +266,19 @@ fun ChatScreen(
                     if (showOptionsDialog!!.isMe) {
                         TextButton(
                             onClick = {
+                                editText = showOptionsDialog!!.text
+                                showEditDialog = showOptionsDialog
+                                showOptionsDialog = null
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Edit Message")
+                        }
+
+                        TextButton(
+                            onClick = {
                                 viewModel.deleteMessage(roomId, showOptionsDialog!!.id)
                                 showOptionsDialog = null
                             },
@@ -300,6 +293,29 @@ fun ChatScreen(
                 }
             },
             confirmButton = {}
+        )
+    }
+
+    if (showEditDialog != null) {
+        AlertDialog(
+            onDismissRequest = { showEditDialog = null },
+            title = { Text("Edit Message") },
+            text = {
+                OutlinedTextField(
+                    value = editText,
+                    onValueChange = { editText = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.editMessage(roomId, showEditDialog!!.id, editText)
+                    showEditDialog = null
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditDialog = null }) { Text("Cancel") }
+            }
         )
     }
 }

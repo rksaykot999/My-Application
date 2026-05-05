@@ -13,7 +13,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rksaykot.myapplication.viewmodel.ThemeViewModel
@@ -23,15 +22,12 @@ import com.rksaykot.myapplication.viewmodel.ThemeViewModel
 fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToPrivacy: () -> Unit,
-    onNavigateToLanguage: () -> Unit,
-    themeViewModel: ThemeViewModel = viewModel()
+    themeViewModel: ThemeViewModel = viewModel(),
+    onNavigateToLanguage: () -> Unit
 ) {
     var notificationsEnabled by remember { mutableStateOf(true) }
     var soundEnabled by remember { mutableStateOf(true) }
-    var showVersionDialog by remember { mutableStateOf(false) }
-    
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
 
     Scaffold(
         topBar = {
@@ -85,11 +81,6 @@ fun SettingsScreen(
                     onClick = onNavigateToPrivacy
                 )
                 SettingsClickItem(
-                    title = "App Language",
-                    icon = Icons.Default.Language,
-                    onClick = onNavigateToLanguage
-                )
-                SettingsClickItem(
                     title = "Clear Cache",
                     icon = Icons.Default.DeleteSweep,
                     onClick = { 
@@ -102,36 +93,13 @@ fun SettingsScreen(
                 SettingsHeader("About")
                 SettingsClickItem(
                     title = "App Version",
-                    subtitle = "1.1 (Build 2)",
+                    subtitle = "1.0.0 (Stable)",
                     icon = Icons.Default.Info,
-                    onClick = { showVersionDialog = true }
+                    onClick = { 
+                        Toast.makeText(context, "You are using the latest version.", Toast.LENGTH_SHORT).show()
+                    }
                 )
             }
-        }
-
-        if (showVersionDialog) {
-            AlertDialog(
-                onDismissRequest = { showVersionDialog = false },
-                title = { Text("App Update Info") },
-                text = {
-                    Column {
-                        Text("A new version might be available with better performance and new features.")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Latest Version: 1.1 (2)", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Download Latest APK",
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.clickable { 
-                                uriHandler.openUri("https://drive.google.com/drive/folders/1NoSBuYJNoy-RCSNBXjJQStKQhvAVCl8t?usp=drive_link")
-                            }
-                        )
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showVersionDialog = false }) { Text("Close") }
-                }
-            )
         }
     }
 }

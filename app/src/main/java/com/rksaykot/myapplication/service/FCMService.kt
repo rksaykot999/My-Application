@@ -1,5 +1,6 @@
 package com.rksaykot.myapplication.service
 
+import android.app.ActivityManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -14,47 +15,61 @@ import com.rksaykot.myapplication.R
 
 class FCMService : FirebaseMessagingService() {
 
-    override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        // Handle Notification payload
-        remoteMessage.notification?.let {
-            sendNotification(it.title ?: "New Message", it.body ?: "")
-        }
+    override fun onNewToken(token: String) {
+        super.onNewToken(token)
+        // Token update is usually handled in MainActivity via FirebaseMessaging.getInstance().token
+    }
 
-        // Handle Data payload (For background/foreground consistency)
-        if (remoteMessage.data.isNotEmpty()) {
-            val title = remoteMessage.data["title"] ?: "New Message"
-            val body = remoteMessage.data["body"] ?: ""
-            sendNotification(title, body)
+    override fun onMessageReceived(remoteMessage: RemoteMessage) {
+        // Only show notification if app is in background
+        if (isAppInBackground()) {
+            remoteMessage.notification?.let {
+                sendNotification(it.title ?: "New Message", it.body ?: "")
+            } ?: run {
+                // If it's a data message
+                val title = remoteMessage.data["title"] ?: "New Message"
+                val body = remoteMessage.data["body"] ?: ""
+                sendNotification(title, body)
+            }
         }
+    }
+
+    private fun isAppInBackground(): Boolean {
+        val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val runningProcesses = activityManager.runningAppProcesses ?: return true
+        for (processInfo in runningProcesses) {
+            if (processInfo.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
+                for (activeProcess in processInfo.pkgList) {
+                    if (activeProcess == packageName) {
+                        return false
+                    }
+                }
+            }
+        }
+        return true
     }
 
     private fun sendNotification(title: String, messageBody: String) {
         val intent = Intent(this, MainActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        val pendingIntent = PendingIntent.getActivity(this, System.currentTimeMillis().toInt(), intent,
+        val pendingIntent = PendingIntent.getActivity(this, 0, intent,
             PendingIntent.FLAG_IMMUTABLE)
 
         val channelId = "chat_messages"
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.mipmap.ic_launcher) // Standard launcher icon for better compatibility
+            .setSmallIcon(R.drawable.app_logo)
             .setContentTitle(title)
             .setContentText(messageBody)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(channelId,
                 "Chat Messages",
-                NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "Chat Notifications"
-                enableLights(true)
-                enableVibration(true)
-            }
+                NotificationManager.IMPORTANCE_HIGH)
             notificationManager.createNotificationChannel(channel)
         }
 

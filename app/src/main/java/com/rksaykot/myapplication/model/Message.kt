@@ -9,6 +9,7 @@ data class Message(
     val senderName: String = "",
     val text: String = "",
     val imageUrl: String? = null,
+    val videoUrl: String? = null,
     val timestamp: Timestamp? = null,
     
     @get:PropertyName("isMe")
@@ -24,5 +25,10 @@ data class Message(
     var isSeen: Boolean = false,
 
     val replyToId: String? = null,
-    val reactions: Map<String, String> = emptyMap()
+    val reactions: Map<String, String> = emptyMap(),
+
+    // Editing support
+    @get:PropertyName("isEdited")
+    val isEdited: Boolean = false,
+    val editedAt: Timestamp? = null
 )

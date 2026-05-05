@@ -27,6 +27,7 @@ class ChatViewModel : ViewModel() {
     val messages = mutableStateListOf<Message>()
     val lastMessages = mutableStateMapOf<String, String>() // roomId -> lastMessage
     var connectionStatus by mutableStateOf("")
+    var typingUser by mutableStateOf<String?>(null)
     var selectedUserStatus by mutableStateOf<User?>(null)
 
     init {
@@ -140,6 +141,9 @@ class ChatViewModel : ViewModel() {
         val peerUid = roomName.split("_").find { it != myUid }
         
         if (peerUid != null) {
+            // Immediately fetch peer info
+            fetchUserInfo(peerUid)
+            
             db.collection("users").document(peerUid)
                 .addSnapshotListener { snapshot, _ ->
                     selectedUserStatus = snapshot?.toObject(User::class.java)
@@ -181,6 +185,16 @@ class ChatViewModel : ViewModel() {
     private fun markMessageAsSeen(roomName: String, messageId: String) {
         db.collection("rooms").document(roomName).collection("messages")
             .document(messageId).update("isSeen", true, "isDelivered", true)
+    }
+
+    fun fetchUserInfo(uid: String) {
+        db.collection("users").document(uid).get()
+            .addOnSuccessListener { snapshot ->
+                val user = snapshot.toObject(User::class.java)
+                if (user != null) {
+                    selectedUserStatus = user
+                }
+            }
     }
 
     fun updateDisplayName(newName: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
@@ -233,7 +247,7 @@ class ChatViewModel : ViewModel() {
             .addOnFailureListener { onError(it.message ?: "Failed to update profile image") }
     }
 
-    fun sendMessage(roomName: String, text: String, imageUrl: String? = null, replyToId: String? = null) {
+    fun sendMessage(roomName: String, text: String, imageUrl: String? = null, videoUrl: String? = null, replyToId: String? = null) {
         val user = auth.currentUser ?: return
         val now = Timestamp.now()
         val messageData = hashMapOf(
@@ -241,17 +255,28 @@ class ChatViewModel : ViewModel() {
             "senderName" to (user.displayName ?: "Anonymous"),
             "text" to text,
             "imageUrl" to imageUrl,
+            "videoUrl" to videoUrl,
             "timestamp" to now,
             "isSeen" to false,
-            "isDelivered" to false,
-            "replyToId" to replyToId
+            "isDelivered" to true,
+            "replyToId" to replyToId,
+            "isEdited" to false
         )
         
         db.collection("rooms").document(roomName).collection("messages")
             .add(messageData)
+            .addOnSuccessListener { documentRef ->
+                // Send notification to the peer user
+                sendMessageNotification(roomName, user.displayName ?: "Someone", text, imageUrl, videoUrl)
+            }
 
         // Update room metadata for last message
-        val lastMsgText = if (imageUrl != null && text.isEmpty()) "Sent an image" else text
+        val lastMsgText = when {
+            videoUrl != null && text.isEmpty() -> "Sent a video"
+            imageUrl != null && text.isEmpty() -> "Sent an image"
+            else -> text
+        }
+
         db.collection("rooms").document(roomName).set(
             mapOf(
                 "lastMessage" to lastMsgText,
@@ -266,9 +291,67 @@ class ChatViewModel : ViewModel() {
         )
     }
 
+    fun editMessage(roomName: String, messageId: String, newText: String) {
+        val now = Timestamp.now()
+        db.collection("rooms").document(roomName).collection("messages")
+            .document(messageId).update(
+                "text", newText,
+                "isEdited", true,
+                "editedAt", now
+            )
+            .addOnSuccessListener {
+                // Update last message if this was the latest message
+                db.collection("rooms").document(roomName).set(
+                    mapOf("lastMessage" to newText),
+                    com.google.firebase.firestore.SetOptions.merge()
+                )
+            }
+    }
+
+    private fun sendMessageNotification(roomName: String, senderName: String, messageText: String, imageUrl: String?, videoUrl: String?) {
+        // Extract peer UID from roomName (format: uid1_uid2)
+        val myUid = auth.currentUser?.uid ?: return
+        val peerUid = roomName.split("_").find { it != myUid } ?: return
+
+        // Get peer user's FCM token
+        db.collection("users").document(peerUid).get()
+            .addOnSuccessListener { document ->
+                val fcmToken = document.getString("fcmToken") ?: return@addOnSuccessListener
+
+                val notificationMessage = when {
+                    videoUrl != null && messageText.isEmpty() -> "Sent a video"
+                    imageUrl != null && messageText.isEmpty() -> "Sent an image"
+                    else -> messageText.take(100)
+                }
+
+                // Send notification via Firebase Cloud Messaging
+                sendFCMNotification(fcmToken, senderName, notificationMessage)
+            }
+    }
+
+    private fun sendFCMNotification(token: String, title: String, message: String) {
+        // This sends to FCM which will deliver to the device
+        // The FCMService on the device will handle it
+        db.collection("notifications").add(mapOf(
+            "token" to token,
+            "title" to title,
+            "body" to message,
+            "timestamp" to Timestamp.now(),
+            "sent" to false
+        ))
+    }
+
     fun deleteMessage(roomName: String, messageId: String) {
         db.collection("rooms").document(roomName).collection("messages")
             .document(messageId).delete()
+    }
+
+    fun copyMessageText(text: String): String {
+        return text
+    }
+
+    fun shareMessage(messageText: String): String {
+        return messageText
     }
 
     fun addReaction(roomName: String, messageId: String, emoji: String) {
@@ -281,6 +364,26 @@ class ChatViewModel : ViewModel() {
         val userId = auth.currentUser?.uid ?: return
         db.collection("rooms").document(roomName).collection("messages")
             .document(messageId).update("reactions.$userId", FieldValue.delete())
+    }
+
+    fun setTypingStatus(roomName: String, isTyping: Boolean) {
+        val uid = auth.currentUser?.uid ?: return
+        db.collection("rooms").document(roomName)
+            .update("typing.$uid", isTyping)
+    }
+
+    fun clearChatHistory(roomName: String) {
+        db.collection("rooms").document(roomName).collection("messages")
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val batch = db.batch()
+                for (doc in snapshot.documents) {
+                    batch.delete(doc.reference)
+                }
+                batch.commit()
+            }
+        
+        db.collection("rooms").document(roomName).update("lastMessage", "")
     }
 
     fun logout() {
