@@ -97,7 +97,7 @@ class ChatViewModel : ViewModel() {
     }
 
     fun fetchAllUsers() {
-        val myUid = auth.currentUser?.uid ?: return
+        val myUid = auth.currentUser?.uid
         db.collection("users").addSnapshotListener { snapshot, e ->
             if (e != null || snapshot == null) return@addSnapshotListener
             users.clear()
@@ -107,8 +107,10 @@ class ChatViewModel : ViewModel() {
                     users.add(user)
                     // Listen to last message for this specific chat
                     val peerUid = user.uid
-                    val roomId = if (myUid < peerUid) "${myUid}_${peerUid}" else "${peerUid}_${myUid}"
-                    listenToRoomMetadata(roomId)
+                    if (myUid != null) {
+                        val roomId = if (myUid < peerUid) "${myUid}_${peerUid}" else "${peerUid}_${myUid}"
+                        listenToRoomMetadata(roomId)
+                    }
                 }
             }
         }
