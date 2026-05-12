@@ -32,6 +32,9 @@ class ChatViewModel : ViewModel() {
     val contacts = mutableStateListOf<User>()
     val messages = mutableStateListOf<Message>()
     val unreadRooms = mutableStateMapOf<String, Boolean>()
+    val lastMessages = mutableStateMapOf<String, String>()
+    val lastMessageTimes = mutableStateMapOf<String, Long>()
+    val lastMessageSenderIds = mutableStateMapOf<String, String>()
 
     var typingUser by mutableStateOf<String?>(null)
     var selectedUserStatus by mutableStateOf<User?>(null)
@@ -149,6 +152,11 @@ class ChatViewModel : ViewModel() {
             snapshot?.documents?.forEach { roomDoc ->
                 val roomId = roomDoc.id
                 if (roomId.contains(myUid)) {
+                    // Track last message and time
+                    lastMessages[roomId] = roomDoc.getString("lastMessage") ?: ""
+                    lastMessageTimes[roomId] = roomDoc.getTimestamp("lastMessageTime")?.toDate()?.time ?: 0L
+                    lastMessageSenderIds[roomId] = roomDoc.getString("lastMessageSenderId") ?: ""
+
                     roomDoc.reference.collection("messages")
                         .whereEqualTo("isSeen", false)
                         .addSnapshotListener { msgSnap, _ ->

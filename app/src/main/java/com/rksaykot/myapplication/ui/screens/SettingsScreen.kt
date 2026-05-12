@@ -125,9 +125,16 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsClickableItem(
+                        icon = Icons.Outlined.Info,
+                        title = "App Version",
+                        description = "Current version: 3.1.0",
+                        onClick = {}
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                    SettingsClickableItem(
                         icon = Icons.Outlined.Download,
-                        title = "Check for Updates",
-                        description = "Current version: 3.0.0",
+                        title = "Download Latest Version",
+                        description = "Get the newest features and fixes",
                         onClick = {
                             val intent = Intent(Intent.ACTION_VIEW)
                             intent.data = "https://drive.google.com/drive/folders/1NoSBuYJNoy-RCSNBXjJQStKQhvAVCl8t?usp=sharing".toUri()

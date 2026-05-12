@@ -17,7 +17,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -40,8 +39,8 @@ fun HomeScreen(
     onProfileClick: () -> Unit,
     viewModel: ChatViewModel = viewModel()
 ) {
-    // State management for UI
-    val contacts = viewModel.contacts // Using 'contacts' instead of 'users' as per latest ViewModel
+    // Sync state with ViewModel
+    val contacts = viewModel.contacts
     val unreadRooms = viewModel.unreadRooms
     val currentUser = viewModel.currentUser
 
@@ -50,9 +49,11 @@ fun HomeScreen(
     var friendQuery by remember { mutableStateOf("") }
     val context = LocalContext.current
 
-    // Filtering logic for search
-    val filteredContacts = contacts.filter {
-        it.displayName.contains(searchQuery, ignoreCase = true)
+    // Filtering logic based on search query
+    val filteredContacts = if (searchQuery.isEmpty()) {
+        contacts
+    } else {
+        contacts.filter { it.displayName.contains(searchQuery, ignoreCase = true) }
     }
 
     Scaffold(
@@ -84,7 +85,7 @@ fun HomeScreen(
                                     Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(6.dp))
                                 }
                             }
-                            // Online status indicator for current user
+                            // Small indicator for self-status
                             Surface(
                                 modifier = Modifier.size(10.dp),
                                 shape = CircleShape,
@@ -121,13 +122,14 @@ fun HomeScreen(
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
+            // Search Bar
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search among your friends...", fontSize = 14.sp) },
+                placeholder = { Text("Search your contacts...", fontSize = 14.sp) },
                 leadingIcon = { Icon(Icons.Outlined.Search, null, modifier = Modifier.size(20.dp)) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
@@ -154,17 +156,23 @@ fun HomeScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp) // Extra bottom padding for FAB
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp)
                 ) {
                     items(filteredContacts, key = { it.uid }) { user ->
                         val myUid = currentUser?.uid ?: ""
-                        // Generate Room ID (Smaller UID first for consistency)
+                        // Room ID logic: alphanumeric sort ensures both users land in the same doc
                         val roomId = if (myUid < user.uid) "${myUid}_${user.uid}" else "${user.uid}_$myUid"
                         val hasUnread = unreadRooms[roomId] ?: false
+                        val lastMsg = viewModel.lastMessages[roomId] ?: ""
+                        val lastTime = viewModel.lastMessageTimes[roomId] ?: 0L
+                        val isLastFromMe = viewModel.lastMessageSenderIds[roomId] == myUid
 
                         UserChatItem(
                             user = user,
+                            lastMessage = lastMsg,
+                            lastMessageTime = lastTime,
                             hasUnread = hasUnread,
+                            isLastMessageFromMe = isLastFromMe,
                             onClick = { onContactClick(roomId, user.displayName) }
                         )
                     }
@@ -173,22 +181,23 @@ fun HomeScreen(
         }
     }
 
+    // Add Friend Dialog
     if (showAddDialog) {
         AlertDialog(
             onDismissRequest = {
                 showAddDialog = false
                 friendQuery = ""
             },
-            title = { Text("Add New Friend", fontWeight = FontWeight.Bold) },
+            title = { Text("Connect with a Friend", fontWeight = FontWeight.Bold) },
             text = {
                 Column {
-                    Text("Enter email or phone number to find your friend.", fontSize = 14.sp, color = Color.Gray)
+                    Text("Search for your friend using their registered email or phone number.", fontSize = 14.sp, color = Color.Gray)
                     Spacer(modifier = Modifier.height(16.dp))
                     OutlinedTextField(
                         value = friendQuery,
                         onValueChange = { friendQuery = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Email or Phone") },
+                        placeholder = { Text("Email or Phone Number") },
                         leadingIcon = { Icon(Icons.Default.PersonSearch, null) },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp)
@@ -200,7 +209,7 @@ fun HomeScreen(
                     onClick = {
                         if (friendQuery.isNotBlank()) {
                             viewModel.addFriend(friendQuery, {
-                                Toast.makeText(context, "Friend added successfully!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Contact added successfully!", Toast.LENGTH_SHORT).show()
                                 showAddDialog = false
                                 friendQuery = ""
                             }, { error ->
@@ -209,7 +218,7 @@ fun HomeScreen(
                         }
                     }
                 ) {
-                    Text("Add Friend")
+                    Text("Add Now")
                 }
             },
             dismissButton = {
@@ -225,12 +234,15 @@ fun HomeScreen(
 @Composable
 fun UserChatItem(
     user: com.rksaykot.myapplication.model.User,
+    lastMessage: String,
+    lastMessageTime: Long,
     hasUnread: Boolean,
+    isLastMessageFromMe: Boolean,
     onClick: () -> Unit
 ) {
     val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
-    val displayTime = if (user.lastMessageTime > 0) {
-        timeFormatter.format(Date(user.lastMessageTime))
+    val displayTime = if (lastMessageTime > 0) {
+        timeFormatter.format(Date(lastMessageTime))
     } else {
         ""
     }
@@ -245,16 +257,15 @@ fun UserChatItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 10.dp),
+                .padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Profile Image Section
+            // Profile Icon / Image
             Box(contentAlignment = Alignment.BottomEnd) {
                 Surface(
-                    modifier = Modifier.size(58.dp),
+                    modifier = Modifier.size(56.dp),
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = 2.dp
+                    color = Color(0xFF546081),
                 ) {
                     if (!user.profileImageUrl.isNullOrEmpty()) {
                         AsyncImage(
@@ -264,19 +275,12 @@ fun UserChatItem(
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.background(
-                                Brush.linearGradient(
-                                    listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
-                                )
-                            )
-                        ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Text(
-                                user.displayName.take(1).uppercase(),
+                                text = user.displayName.take(1).uppercase(),
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 22.sp
+                                fontSize = 20.sp
                             )
                         }
                     }
@@ -284,9 +288,10 @@ fun UserChatItem(
 
                 if (user.isOnline) {
                     Surface(
-                        modifier = Modifier.size(16.dp).padding(2.dp),
+                        modifier = Modifier.size(14.dp),
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.background
+                        color = MaterialTheme.colorScheme.background,
+                        border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.background)
                     ) {
                         Box(modifier = Modifier.fillMaxSize().background(Color(0xFF4CAF50), CircleShape))
                     }
@@ -295,48 +300,68 @@ fun UserChatItem(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Information Section
+            // Main Info
             Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = user.displayName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = if (hasUnread) FontWeight.ExtraBold else FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                Text(
+                    text = user.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = if (hasUnread) FontWeight.Bold else FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Priority: Typing > Last Message Snippet
+                val subText = when {
+                    user.typing -> "Typing..."
+                    lastMessage.isNotEmpty() -> {
+                        if (isLastMessageFromMe) "You: $lastMessage" else lastMessage
+                    }
+                    else -> "No messages yet"
+                }
+
+                val subTextColor = if (user.typing) {
+                    MaterialTheme.colorScheme.primary
+                } else if (hasUnread) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                }
+
+                Text(
+                    text = subText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = subTextColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = if (user.typing || hasUnread) FontWeight.Medium else FontWeight.Normal
+                )
+            }
+
+            // Meta Info (Time replaces the dot)
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                if (displayTime.isNotEmpty()) {
                     Text(
                         text = displayTime,
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (hasUnread) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        fontWeight = if (hasUnread) FontWeight.Bold else FontWeight.Normal,
+                        color = if (hasUnread) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (user.lastMessage.isNotEmpty()) user.lastMessage else if (user.isOnline) "Active now" else "Tap to chat",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (hasUnread) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                if (hasUnread && displayTime.isEmpty()) {
+                    // Fallback to dot only if time is not available
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .background(Color(0xFF546081), CircleShape)
                     )
-
-                    if (hasUnread) {
-                        Box(
-                            modifier = Modifier
-                                .padding(start = 8.dp)
-                                .size(10.dp)
-                                .background(MaterialTheme.colorScheme.primary, CircleShape)
-                        )
-                    }
                 }
             }
         }
@@ -371,12 +396,12 @@ fun EmptyStateView(isSearching: Boolean, isEmptyList: Boolean) {
             }
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = if (isSearching) "No results found" else if (isEmptyList) "No friends yet" else "No messages yet",
+                text = if (isSearching) "No results found" else if (isEmptyList) "Start your journey" else "No messages yet",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = if (isSearching) "Try a different name" else if (isEmptyList) "Click the + button below to add friends by email or phone" else "Select a contact to start messaging",
+                text = if (isSearching) "Try a different name" else if (isEmptyList) "Click the + button below to add friends and start chatting!" else "Select a contact to start messaging",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center

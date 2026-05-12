@@ -182,7 +182,6 @@ fun AppNavigation(
             SettingsScreen(
                 onBack = { navController.popBackStack() },
                 onNavigateToPrivacy = { navController.navigate("privacy") },
-                onNavigateToLanguage = { navController.navigate("language") },
                 themeViewModel = themeViewModel
             )
         }
@@ -191,9 +190,6 @@ fun AppNavigation(
             PrivacyPolicyScreen(onBack = { navController.popBackStack() })
         }
 
-        composable("language") {
-            LanguageScreen(onBack = { navController.popBackStack() })
-        }
 
         composable("chat/{roomId}/{displayName}") { backStackEntry ->
             val roomId = backStackEntry.arguments?.getString("roomId") ?: "default_room"

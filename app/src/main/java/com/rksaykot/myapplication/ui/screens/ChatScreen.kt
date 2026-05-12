@@ -5,7 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.sp
 import com.rksaykot.myapplication.model.Message
 import com.rksaykot.myapplication.ui.components.MessageBubble
 import com.rksaykot.myapplication.viewmodel.ChatViewModel
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -251,7 +253,8 @@ fun ChatScreen(
             reverseLayout = true,
             contentPadding = PaddingValues(bottom = 16.dp, top = 8.dp, start = 8.dp, end = 8.dp)
         ) {
-            items(messages.reversed(), key = { it.id }) { message ->
+            val reversedMessages = messages.reversed()
+            itemsIndexed(reversedMessages, key = { _, message -> message.id }) { index, message: Message ->
                 val replyText = messages.find { it.id == message.replyToId }?.text
                 MessageBubble(
                     message = message,
@@ -263,6 +266,12 @@ fun ChatScreen(
                         onDetailsClick()
                     }
                 )
+
+                // Date separator logic
+                val nextOlderMessage = if (index + 1 < reversedMessages.size) reversedMessages[index + 1] else null
+                if (shouldShowDateSeparator(nextOlderMessage, message)) {
+                    DateSeparator(formatChatDate(message.timestamp?.toDate()?.time ?: System.currentTimeMillis()))
+                }
             }
         }
     }
@@ -292,7 +301,21 @@ fun ChatScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Remove Reaction Option
+                    if (showOptionsDialog!!.reactions.isNotEmpty()) {
+                        ListItem(
+                            headlineContent = { Text("Remove Reaction") },
+                            leadingContent = { Icon(Icons.Default.Block, null, tint = MaterialTheme.colorScheme.primary) },
+                            modifier = Modifier.clickable {
+                                viewModel.removeReaction(roomId, showOptionsDialog!!.id)
+                                showOptionsDialog = null
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     if (showOptionsDialog!!.isMe) {
                         ListItem(
@@ -353,4 +376,54 @@ fun ChatScreen(
             }
         )
     }
+}
+
+@Composable
+fun DateSeparator(date: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 20.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = date,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+private fun shouldShowDateSeparator(older: Message?, newer: Message): Boolean {
+    if (older == null) return true
+    val olderTime = older.timestamp?.toDate()?.time ?: 0L
+    val newerTime = newer.timestamp?.toDate()?.time ?: 0L
+    if (olderTime == 0L || newerTime == 0L) return false
+
+    // Messenger style: Show if gap > 1 hour OR different day
+    val diff = newerTime - olderTime
+    if (diff > 3600000) return true 
+
+    val cal1 = Calendar.getInstance().apply { timeInMillis = olderTime }
+    val cal2 = Calendar.getInstance().apply { timeInMillis = newerTime }
+
+    return cal1.get(Calendar.DAY_OF_YEAR) != cal2.get(Calendar.DAY_OF_YEAR) ||
+            cal1.get(Calendar.YEAR) != cal2.get(Calendar.YEAR)
+}
+
+private fun formatChatDate(timestamp: Long): String {
+    val date = Date(timestamp)
+    val now = Calendar.getInstance()
+    val msgTime = Calendar.getInstance().apply { timeInMillis = timestamp }
+
+    val isSameDay = now.get(Calendar.YEAR) == msgTime.get(Calendar.YEAR) &&
+            now.get(Calendar.DAY_OF_YEAR) == msgTime.get(Calendar.DAY_OF_YEAR)
+
+    val formatPattern = when {
+        isSameDay -> "'Today,' h:mm a"
+        now.get(Calendar.YEAR) == msgTime.get(Calendar.YEAR) -> "MMM d, h:mm a"
+        else -> "MMM d yyyy, h:mm a"
+    }
+    return SimpleDateFormat(formatPattern, Locale.getDefault()).format(date)
 }
