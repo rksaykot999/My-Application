@@ -19,7 +19,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -48,6 +50,7 @@ fun ChatScreen(
 
     val messages = viewModel.messages
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     val listState = rememberLazyListState()
 
     DisposableEffect(roomId) {
@@ -316,6 +319,16 @@ fun ChatScreen(
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
+
+                    ListItem(
+                        headlineContent = { Text("Copy Text") },
+                        leadingContent = { Icon(Icons.Default.ContentCopy, null) },
+                        modifier = Modifier.clickable {
+                            clipboardManager.setText(AnnotatedString(showOptionsDialog!!.text))
+                            Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                            showOptionsDialog = null
+                        }
+                    )
 
                     if (showOptionsDialog!!.isMe) {
                         ListItem(
