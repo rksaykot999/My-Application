@@ -59,12 +59,6 @@ class MainActivity : ComponentActivity() {
         // Ask Notification Permission
         askNotificationPermission()
 
-        // Ask Ignore Battery Optimization
-        askBatteryOptimizationPermission()
-
-        // Start Foreground Background Service
-        startChatService()
-
         setContent {
 
             val themeViewModel: ThemeViewModel = viewModel()
@@ -317,6 +311,10 @@ fun AppNavigation(
 
                 onBack = {
                     navController.popBackStack()
+                },
+
+                onNavigateToPrivacy = {
+                    navController.navigate("privacy")
                 }
             )
         }

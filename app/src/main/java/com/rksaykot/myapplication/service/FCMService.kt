@@ -7,31 +7,77 @@ import com.rksaykot.myapplication.notification.NotificationHelper
 
 class FCMService : FirebaseMessagingService() {
 
+    override fun onCreate() {
+        super.onCreate()
+
+        // 🔥 IMPORTANT: Always initialize notification channels
+        NotificationHelper(this).createNotificationChannels()
+
+        Log.d(TAG, "FCM Service Created & Channels Initialized")
+    }
+
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
-        Log.d(TAG, "Message received: ${remoteMessage.notification?.title}")
+        Log.d(TAG, "FCM Received: data=${remoteMessage.data}")
 
-        // Notification data extract করুন
-        val title = remoteMessage.notification?.title ?: "New Message"
-        val body = remoteMessage.notification?.body ?: ""
-        val senderName = remoteMessage.data["senderName"] ?: "Friend"
-        val senderId = remoteMessage.data["senderId"] ?: ""
-        val roomId = remoteMessage.data["roomId"] ?: ""
-        val messageText = remoteMessage.data["messageText"] ?: body
+        // =========================
+        // SAFE DATA EXTRACTION
+        // =========================
 
-        // NotificationHelper ব্যবহার করে notification show করুন
+        val data = remoteMessage.data
+
+        val title = data["title"]
+            ?: remoteMessage.notification?.title
+            ?: "New Message"
+
+        val messageText = data["messageText"]
+            ?: remoteMessage.notification?.body
+            ?: ""
+
+        val senderName = data["senderName"] ?: "Friend"
+        val senderId = data["senderId"] ?: ""
+        val roomId = data["roomId"] ?: ""
+
+        // =========================
+        // VALIDATION CHECK
+        // =========================
+
+        if (roomId.isBlank()) {
+            Log.e(TAG, "RoomId missing, notification skipped")
+            return
+        }
+
+        // =========================
+        // SHOW NOTIFICATION
+        // =========================
+
         val notificationHelper = NotificationHelper(this)
-        notificationHelper.showMessageNotification(senderName, messageText, roomId, senderId)
-        notificationHelper.showHeadsUpNotification(senderName, messageText, roomId, senderId)
+
+        notificationHelper.showMessageNotification(
+            title = senderName,
+            message = messageText,
+            roomId = roomId,
+            senderId = senderId
+        )
+
+        notificationHelper.showHeadsUpNotification(
+            senderName = senderName,
+            messageText = messageText,
+            roomId = roomId,
+            senderId = senderId
+        )
     }
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d(TAG, "New token: $token")
-        // Token কে Firebase এ save করুন (MainActivity তে save হয় already)
-    }
 
+        Log.d(TAG, "New FCM Token: $token")
+
+        // TODO: Send token to your server
+        // Example:
+        // sendTokenToServer(token)
+    }
 
     companion object {
         private const val TAG = "FCMService"

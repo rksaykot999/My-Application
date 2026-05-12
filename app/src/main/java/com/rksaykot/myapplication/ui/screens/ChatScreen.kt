@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rksaykot.myapplication.model.Message
+import com.rksaykot.myapplication.ui.components.RightSidebar
 import com.rksaykot.myapplication.ui.components.MessageBubble
 import com.rksaykot.myapplication.viewmodel.ChatViewModel
 import java.text.SimpleDateFormat
@@ -46,24 +47,13 @@ fun ChatScreen(
     var showEditDialog by remember { mutableStateOf<Message?>(null) }
     var editText by remember { mutableStateOf("") }
     var showMenu by remember { mutableStateOf(false) }
+    var showSidebar by remember { mutableStateOf(false) }
 
     val messages = viewModel.messages
     val context = LocalContext.current
     val listState = rememberLazyListState()
 
-    val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
-            Toast.makeText(context, "Uploading image...", Toast.LENGTH_SHORT).show()
-            viewModel.uploadImage(it, "chat_images",
-                onSuccess = { url ->
-                    viewModel.sendMessage(roomId, "", imageUrl = url)
-                },
-                onError = { error ->
-                    Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
-                }
-            )
-        }
-    }
+    // Image sending disabled per user request - no image launcher
 
     DisposableEffect(roomId) {
         viewModel.activeRoomId = roomId
@@ -145,6 +135,18 @@ fun ChatScreen(
                 }
 
                 if (replyingToMessage != null) {
+                    // Show typing indicator (small) near reply preview when peer is typing
+                    val typingName = viewModel.users.find { it.uid == viewModel.typingUser }?.displayName
+                        ?: if (viewModel.selectedUserStatus?.uid == viewModel.typingUser) viewModel.selectedUserStatus?.displayName else null
+                    if (viewModel.typingUser != null && typingName != null) {
+                        Text(
+                            text = "$typingName is typing...",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 16.dp, bottom = 2.dp)
+                        )
+                    }
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -178,9 +180,7 @@ fun ChatScreen(
                             .padding(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = { imageLauncher.launch("image/*") }) {
-                            Icon(Icons.Default.Image, contentDescription = "Send Image", tint = MaterialTheme.colorScheme.primary)
-                        }
+                        // Image sending disabled
 
                         TextField(
                             value = messageText,
@@ -307,6 +307,25 @@ fun ChatScreen(
                 }
             },
             confirmButton = {}
+        )
+    }
+
+    if (showSidebar) {
+        RightSidebar(
+            visible = showSidebar,
+            onClose = { showSidebar = false },
+            onProfile = {
+                showSidebar = false
+                onDetailsClick()
+            },
+            onSettings = {
+                showSidebar = false
+                // navigate to settings - assume caller handles navigation
+            },
+            onLogout = {
+                showSidebar = false
+                viewModel.logout()
+            }
         )
     }
 

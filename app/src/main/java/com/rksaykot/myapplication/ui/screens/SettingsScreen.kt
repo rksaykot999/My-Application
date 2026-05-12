@@ -7,6 +7,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +50,7 @@ fun SettingsScreen(
             )
         }
     ) { innerPadding ->
+        val context = LocalContext.current
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -138,8 +142,22 @@ fun SettingsScreen(
                 SettingItem(
                     icon = "ℹ️",
                     title = "App Version",
-                    description = "1.0.0",
+                    description = "2.8.0",
                     isClickable = false
+                )
+            }
+            item {
+                SettingItemClickable(
+                    icon = "⬇️",
+                    title = "Download latest version",
+                    description = "Get the newest release",
+                    onClick = {
+                        // open external link
+                        val intent = Intent(Intent.ACTION_VIEW)
+                        intent.data = Uri.parse("https://drive.google.com/drive/folders/1NoSBuYJNoy-RCSNBXjJQStKQhvAVCl8t?usp=sharing")
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                    }
                 )
             }
         }

@@ -2,31 +2,35 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- ==================== PERMISSIONS ==================== -->
+    <!-- ==================== INTERNET ==================== -->
 
-    <!-- Internet access -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Notifications (Android 13+) -->
+    <!-- ==================== NOTIFICATION ==================== -->
+
+    <!-- Android 13+ -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Background permissions -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- ==================== STORAGE ==================== -->
 
-    <!-- Storage access for images -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- Android 12 নিচে -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- Android 13+ -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
-    <!-- Vibration for notifications -->
+    <!-- Optional -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!-- ==================== NOTIFICATION VIBRATION ==================== -->
+
     <uses-permission android:name="android.permission.VIBRATE" />
 
-    <!-- Disable on devices that don't support notifications -->
     <uses-feature
         android:name="android.hardware.notification.vibration"
         android:required="false" />
@@ -34,72 +38,84 @@
     <!-- ==================== APPLICATION ==================== -->
 
     <application
+        android:name=".MyApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
+        android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:largeHeap="true"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication"
-        tools:targetApi="31">
+        tools:targetApi="34">
 
-        <!-- Main Activity -->
+        <!-- ==================== MAIN ACTIVITY ==================== -->
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.MyApplication"
             android:windowSoftInputMode="adjustResize|stateHidden">
+
+            <!-- Launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Handle notification tap -->
+            <!-- Notification Open -->
             <intent-filter>
                 <action android:name="com.rksaykot.myapplication.OPEN_CHAT" />
+
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+
         </activity>
 
-        <!-- ==================== SERVICES ==================== -->
+        <!-- ==================== FCM SERVICE ==================== -->
 
-        <!-- Firebase Cloud Messaging Service -->
         <service
             android:name=".service.FCMService"
             android:exported="false">
+
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
+
         </service>
 
-        <!-- Background sync service -->
+        <!-- ==================== BACKGROUND SYNC ==================== -->
+
         <service
             android:name=".service.BackgroundSyncService"
+            android:enabled="true"
             android:exported="false" />
 
-        <service
-            android:name=".service.ChatForegroundService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
-
-        <!-- ==================== PROVIDERS ==================== -->
+        <!-- ==================== FILE PROVIDER ==================== -->
 
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
+
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
+
         </provider>
 
-        <!-- Firebase metadata -->
+        <!-- ==================== FIREBASE ==================== -->
+
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="msg_channel_id" />
+
+        <!-- ==================== FONTS ==================== -->
 
         <meta-data
             android:name="preloaded_fonts"

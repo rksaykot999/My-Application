@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,7 +38,6 @@ fun HomeScreen(
     viewModel: ChatViewModel
 ) {
     var showAddContactDialog by remember { mutableStateOf(false) }
-    var showMenuDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.fetchAllUsers()
@@ -53,9 +53,14 @@ fun HomeScreen(
                         fontWeight = FontWeight.Bold
                     )
                 },
+                navigationIcon = {
+                    IconButton(onClick = { onProfileClick() }) {
+                        Icon(Icons.Default.Person, contentDescription = "Profile")
+                    }
+                },
                 actions = {
-                    IconButton(onClick = { showMenuDialog = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More")
+                    IconButton(onClick = { onSettingsClick() }) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -132,24 +137,7 @@ fun HomeScreen(
         )
     }
 
-    if (showMenuDialog) {
-        MenuDialog(
-            onDismiss = { showMenuDialog = false },
-            onSettings = {
-                showMenuDialog = false
-                onSettingsClick()
-            },
-            onProfile = {
-                showMenuDialog = false
-                onProfileClick()
-            },
-            onLogout = {
-                showMenuDialog = false
-                viewModel.logout()
-                onLogout()
-            }
-        )
-    }
+    // no sidebar - preserve original dropdown/menu behavior
 }
 
 @Composable
@@ -308,35 +296,7 @@ fun AddContactDialog(
 }
 
 @Composable
-fun MenuDialog(
-    onDismiss: () -> Unit,
-    onSettings: () -> Unit,
-    onProfile: () -> Unit,
-    onLogout: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Menu") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onProfile, modifier = Modifier.fillMaxWidth()) {
-                    Text("👤 Profile", modifier = Modifier.fillMaxWidth())
-                }
-                TextButton(onClick = onSettings, modifier = Modifier.fillMaxWidth()) {
-                    Text("⚙️ Settings", modifier = Modifier.fillMaxWidth())
-                }
-                TextButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
-                    Text("🚪 Logout", modifier = Modifier.fillMaxWidth())
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = { onDismiss() }) {
-                Text("Close")
-            }
-        }
-    )
-}
+// Sidebar replaced MenuDialog - use RightSidebar composable
 
 private fun generateRoomId(uid1: String, uid2: String): String {
     return if (uid1 < uid2) "${uid1}_${uid2}" else "${uid2}_${uid1}"

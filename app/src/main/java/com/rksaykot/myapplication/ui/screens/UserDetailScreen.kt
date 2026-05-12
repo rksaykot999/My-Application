@@ -106,11 +106,7 @@ fun UserDetailScreen(
                     leadingContent = { Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
                 )
                 
-                ListItem(
-                    headlineContent = { Text("Bio") },
-                    supportingContent = { Text(user.bio ?: "No bio yet") },
-                    leadingContent = { Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
-                )
+                // Bio removed per request
             }
         }
     }
