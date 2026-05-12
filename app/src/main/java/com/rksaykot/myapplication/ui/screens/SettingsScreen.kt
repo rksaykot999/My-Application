@@ -1,20 +1,34 @@
 package com.rksaykot.myapplication.ui.screens
 
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalContext
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import com.rksaykot.myapplication.viewmodel.ThemeViewModel
+import com.rksaykot.myapplication.viewmodel.ThemeOption
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -22,12 +36,12 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToPrivacy: () -> Unit,
     themeViewModel: ThemeViewModel,
-    onNavigateToLanguage: () -> Unit
+    onNavigateToLanguage: () -> Unit = {}
 ) {
     var notificationEnabled by remember { mutableStateOf(true) }
     var soundEnabled by remember { mutableStateOf(true) }
     var vibrationEnabled by remember { mutableStateOf(true) }
-    var headsUpEnabled by remember { mutableStateOf(true) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -35,248 +49,285 @@ fun SettingsScreen(
                 title = {
                     Text(
                         "Settings",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.ExtraBold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface
                 )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        val context = LocalContext.current
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            // Theme Section
             item {
-                SettingsSectionTitle("Appearance")
-            }
-            item {
-                SettingItem(
-                    icon = "🌙",
-                    title = "Dark Mode",
-                    description = "Enable dark theme",
-                    isToggle = true,
-                    isEnabled = themeViewModel.isDarkMode,
-                    onToggle = { themeViewModel.toggleTheme() }
-                )
+                SettingsSectionHeader("Appearance")
+                SettingsGroup {
+                    ThemeSelectorItem(
+                        selectedOption = themeViewModel.selectedOption,
+                        onOptionSelected = { themeViewModel.setThemeOption(it) }
+                    )
+                }
             }
 
-            // Notification Settings
             item {
-                SettingsSectionTitle("Notifications")
-            }
-            item {
-                SettingItem(
-                    icon = "🔔",
-                    title = "Enable Notifications",
-                    description = "Receive message notifications",
-                    isToggle = true,
-                    isEnabled = notificationEnabled,
-                    onToggle = { notificationEnabled = it }
-                )
-            }
-            item {
-                SettingItem(
-                    icon = "🔊",
-                    title = "Notification Sound",
-                    description = "Play sound with notifications",
-                    isToggle = true,
-                    isEnabled = soundEnabled,
-                    onToggle = { soundEnabled = it },
-                    enabled = notificationEnabled
-                )
-            }
-            item {
-                SettingItem(
-                    icon = "📳",
-                    title = "Vibration",
-                    description = "Vibrate on new message",
-                    isToggle = true,
-                    isEnabled = vibrationEnabled,
-                    onToggle = { vibrationEnabled = it },
-                    enabled = notificationEnabled
-                )
-            }
-            item {
-                SettingItem(
-                    icon = "⚡",
-                    title = "Heads-Up Notifications",
-                    description = "Show popup for incoming messages",
-                    isToggle = true,
-                    isEnabled = headsUpEnabled,
-                    onToggle = { headsUpEnabled = it },
-                    enabled = notificationEnabled
-                )
+                SettingsSectionHeader("Notifications")
+                SettingsGroup {
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Notifications,
+                        title = "Enable Notifications",
+                        description = "Receive important updates and alerts",
+                        checked = notificationEnabled,
+                        onCheckedChange = { notificationEnabled = it }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.VolumeUp,
+                        title = "Notification Sound",
+                        description = "Play sound with notifications",
+                        checked = soundEnabled,
+                        onCheckedChange = { soundChanged ->
+                            soundEnabled = soundChanged
+                        },
+                        enabled = notificationEnabled
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Vibration,
+                        title = "Vibration",
+                        description = "Feel haptic feedback for alerts",
+                        checked = vibrationEnabled,
+                        onCheckedChange = { vibrationEnabled = it },
+                        enabled = notificationEnabled
+                    )
+                }
             }
 
-            // General Settings
             item {
-                SettingsSectionTitle("General")
-            }
-            item {
-                SettingItemClickable(
-                    icon = "📜",
-                    title = "Privacy Policy",
-                    description = "Read our privacy policy",
-                    onClick = onNavigateToPrivacy
-                )
-            }
-
-            // App Info
-            item {
-                SettingsSectionTitle("About")
-            }
-            item {
-                SettingItem(
-                    icon = "ℹ️",
-                    title = "App Version",
-                    description = "2.9.0",
-                    isClickable = false
-                )
-            }
-            item {
-                SettingItemClickable(
-                    icon = "⬇️",
-                    title = "Download latest version",
-                    description = "Get the newest release",
-                    onClick = {
-                        // open external link
-                        val intent = Intent(Intent.ACTION_VIEW)
-                        intent.data = Uri.parse("https://drive.google.com/drive/folders/1NoSBuYJNoy-RCSNBXjJQStKQhvAVCl8t?usp=sharing")
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        context.startActivity(intent)
-                    }
-                )
+                SettingsSectionHeader("Legal & Info")
+                SettingsGroup {
+                    SettingsClickableItem(
+                        icon = Icons.Outlined.Description,
+                        title = "Privacy Policy",
+                        description = "How we handle your data",
+                        onClick = onNavigateToPrivacy
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                    SettingsClickableItem(
+                        icon = Icons.Outlined.Download,
+                        title = "Check for Updates",
+                        description = "Current version: 3.0.0",
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW)
+                            intent.data = "https://drive.google.com/drive/folders/1NoSBuYJNoy-RCSNBXjJQStKQhvAVCl8t?usp=sharing".toUri()
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(intent)
+                        }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun SettingsSectionTitle(title: String) {
+fun ThemeSelectorItem(
+    selectedOption: ThemeOption,
+    onOptionSelected: (ThemeOption) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Outlined.Palette,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text("Overall appearance", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                Text("Adapts theme to your preference", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Segmented Control (matches image_d21655.png style)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            ThemeOption.entries.forEach { option ->
+                val isSelected = selectedOption == option
+                val backgroundColor by animateColorAsState(
+                    if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
+                    label = "bg"
+                )
+                val contentColor by animateColorAsState(
+                    if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    label = "content"
+                )
+                val elevation by animateDpAsState(if (isSelected) 2.dp else 0.dp, label = "elev")
+
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    shape = RoundedCornerShape(8.dp),
+                    color = backgroundColor,
+                    tonalElevation = elevation,
+                    onClick = { onOptionSelected(option) }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = when(option) {
+                                ThemeOption.SYSTEM -> Icons.Default.SettingsSuggest
+                                ThemeOption.LIGHT -> Icons.Default.LightMode
+                                ThemeOption.DARK -> Icons.Default.DarkMode
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = contentColor
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = option.name.lowercase().replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.labelLarge,
+                            color = contentColor,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsSectionHeader(title: String) {
     Text(
-        title,
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.SemiBold,
+        text = title.uppercase(),
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        modifier = Modifier.padding(start = 24.dp, top = 24.dp, bottom = 8.dp),
+        letterSpacing = 1.2.sp
     )
 }
 
 @Composable
-fun SettingItem(
-    icon: String,
-    title: String,
-    description: String,
-    isToggle: Boolean = false,
-    isEnabled: Boolean = true,
-    enabled: Boolean = true,
-    isClickable: Boolean = true,
-    onToggle: ((Boolean) -> Unit)? = null,
-    onClick: (() -> Unit)? = null
-) {
+fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+        border = BorderStroke(
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+        )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(icon, style = MaterialTheme.typography.headlineMedium)
-                Column {
-                    Text(
-                        title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            if (isToggle) {
-                Switch(
-                    checked = isEnabled,
-                    onCheckedChange = { onToggle?.invoke(it) },
-                    enabled = enabled
-                )
-            }
-        }
+        Column(content = content)
     }
 }
 
 @Composable
-fun SettingItemClickable(
-    icon: String,
+fun SettingsSwitchItem(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            )
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled
+        )
+    }
+}
+
+@Composable
+fun SettingsClickableItem(
+    icon: ImageVector,
     title: String,
     description: String,
     onClick: () -> Unit
 ) {
-    Card(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+            .clickable { onClick() }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .clickable { onClick() },
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(icon, style = MaterialTheme.typography.headlineMedium)
-                Column {
-                    Text(
-                        title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Text("→", style = MaterialTheme.typography.titleLarge)
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        )
     }
 }

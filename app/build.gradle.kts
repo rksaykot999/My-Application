@@ -88,6 +88,7 @@ android {
 dependencies {
     // ==================== FIREBASE ====================
     implementation(platform(libs.firebase.bom))
+    implementation(libs.androidx.compose.foundation)
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)

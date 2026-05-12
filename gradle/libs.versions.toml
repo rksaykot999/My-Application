@@ -10,6 +10,7 @@ kotlin = "2.2.10"
 composeBom = "2026.02.01"
 firebaseBom = "34.12.0"
 googleServices = "4.4.4"
+foundation = "1.11.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -38,6 +39,7 @@ firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging
 firebase-appdistribution = { group = "com.google.firebase", name = "firebase-appdistribution", version = "16.0.0-beta18" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version = "21.0.0" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version = "2.6.0" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

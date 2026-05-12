@@ -77,7 +77,7 @@ fun SplashScreen(onNext: () -> Unit) {
             )
 
             Text(
-                text = "A special messaging space for\nShawon and Saykot.",
+                text = "A special messaging space for\nBest Friend.",
                 fontSize = 22.sp,
                 fontFamily = FontFamily.Cursive,
                 color = Color.Black,

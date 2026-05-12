@@ -3,10 +3,12 @@ package com.rksaykot.myapplication.ui.screens.auth
 import androidx.compose.animation.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -18,10 +20,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,7 +39,10 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
+    var phoneNumber by remember { mutableStateOf("") }
+    var gender by remember { mutableStateOf("Male") }
     var isSignUp by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
@@ -51,7 +57,6 @@ fun LoginScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
     ) {
-        // Top Decorative Background
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -68,8 +73,7 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(60.dp))
-            
-            // App Logo and Title
+
             Surface(
                 modifier = Modifier
                     .size(100.dp)
@@ -80,32 +84,25 @@ fun LoginScreen(
                 Image(
                     painter = painterResource(id = R.drawable.app_logo),
                     contentDescription = "App Logo",
-                    modifier = Modifier.padding(15.dp),
-                    contentScale = ContentScale.Fit
+                    modifier = Modifier.padding(15.dp)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(20.dp))
-            
+
             Text(
                 text = if (isSignUp) "Create Account" else "Welcome Back",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color.White
             )
-            Text(
-                text = if (isSignUp) "Join our secret messaging space" else "Sign in to catch up with friends",
-                fontSize = 14.sp,
-                color = Color.White.copy(alpha = 0.8f),
-                textAlign = TextAlign.Center
-            )
 
             Spacer(modifier = Modifier.height(40.dp))
 
-            // Input Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(bottom = 20.dp)
                     .shadow(15.dp, RoundedCornerShape(25.dp)),
                 shape = RoundedCornerShape(25.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -125,6 +122,48 @@ fun LoginScreen(
                             singleLine = true
                         )
                         Spacer(modifier = Modifier.height(15.dp))
+
+                        OutlinedTextField(
+                            value = phoneNumber,
+                            onValueChange = { phoneNumber = it },
+                            label = { Text("Phone Number") },
+                            leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(15.dp),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                        )
+                        Spacer(modifier = Modifier.height(15.dp))
+
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "Gender",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.clickable { gender = "Male" }
+                                ) {
+                                    RadioButton(selected = gender == "Male", onClick = { gender = "Male" })
+                                    Text("Male")
+                                }
+                                Spacer(modifier = Modifier.width(20.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.clickable { gender = "Female" }
+                                ) {
+                                    RadioButton(selected = gender == "Female", onClick = { gender = "Female" })
+                                    Text("Female")
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(15.dp))
                     }
 
                     OutlinedTextField(
@@ -134,60 +173,80 @@ fun LoginScreen(
                         leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(15.dp),
-                        singleLine = true
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                     )
-                    
+
                     Spacer(modifier = Modifier.height(15.dp))
-                    
+
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
                         label = { Text("Password") },
                         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                        trailingIcon = {
+                            val image = if (passwordVisible)
+                                Icons.Default.Visibility
+                            else Icons.Default.VisibilityOff
+
+                            val description = if (passwordVisible) "Hide password" else "Show password"
+
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(imageVector = image, contentDescription = description)
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth(),
-                        visualTransformation = PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         shape = RoundedCornerShape(15.dp),
-                        singleLine = true
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                     )
 
-                    if (errorMessage != null) {
+                    AnimatedVisibility(visible = errorMessage != null) {
                         Text(
-                            text = errorMessage!!,
-                            color = Color.Red,
+                            text = errorMessage ?: "",
+                            color = MaterialTheme.colorScheme.error,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(top = 10.dp),
                             textAlign = TextAlign.Center
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.height(30.dp))
-                    
+
                     Button(
                         onClick = {
                             val trimmedEmail = email.trim()
                             val trimmedPassword = password.trim()
                             isLoading = true
                             errorMessage = null
+
                             if (isSignUp) {
-                                viewModel.signUp(trimmedEmail, trimmedPassword, name, 
-                                    onSuccess = { 
+                                val newUser = com.rksaykot.myapplication.model.User(
+                                    email = trimmedEmail,
+                                    displayName = name,
+                                    phoneNumber = phoneNumber,
+                                    gender = gender
+                                )
+                                viewModel.signUp(newUser, trimmedPassword,
+                                    onSuccess = {
                                         isLoading = false
-                                        onLoginSuccess() 
+                                        onLoginSuccess()
                                     },
-                                    onError = { 
+                                    onError = { error ->
                                         isLoading = false
-                                        errorMessage = it 
+                                        errorMessage = error
                                     }
                                 )
                             } else {
                                 viewModel.login(trimmedEmail, trimmedPassword,
-                                    onSuccess = { 
+                                    onSuccess = {
                                         isLoading = false
-                                        onLoginSuccess() 
+                                        onLoginSuccess()
                                     },
-                                    onError = { 
+                                    onError = { error ->
                                         isLoading = false
-                                        errorMessage = it 
+                                        errorMessage = error
                                     }
                                 )
                             }
@@ -196,14 +255,13 @@ fun LoginScreen(
                             .fillMaxWidth()
                             .height(55.dp),
                         enabled = !isLoading,
-                        shape = RoundedCornerShape(15.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+                        shape = RoundedCornerShape(15.dp)
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
                         } else {
                             Text(
-                                text = if (isSignUp) "SIGN UP" else "LOGIN",
+                                text = if (isSignUp) "CREATE ACCOUNT" else "LOG IN",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
                             )
@@ -211,11 +269,12 @@ fun LoginScreen(
                     }
                 }
             }
-            
-            Spacer(modifier = Modifier.height(20.dp))
-            
+
             TextButton(
-                onClick = { isSignUp = !isSignUp },
+                onClick = {
+                    isSignUp = !isSignUp
+                    errorMessage = null
+                },
                 modifier = Modifier.padding(bottom = 30.dp)
             ) {
                 Text(
