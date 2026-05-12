@@ -111,7 +111,7 @@ fun SettingsScreen(
             }
             item {
                 SettingItem(
-                    icon = "👁️",
+                    icon = "⚡",
                     title = "Heads-Up Notifications",
                     description = "Show popup for incoming messages",
                     isToggle = true,
@@ -142,7 +142,7 @@ fun SettingsScreen(
                 SettingItem(
                     icon = "ℹ️",
                     title = "App Version",
-                    description = "2.8.0",
+                    description = "2.9.0",
                     isClickable = false
                 )
             }
