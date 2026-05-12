@@ -52,7 +52,7 @@ fun SplashScreen(onNext: () -> Unit) {
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black) // Dark background for the friend pic
+            .background(Color.White)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -72,7 +72,7 @@ fun SplashScreen(onNext: () -> Unit) {
                 text = "Best Friend",
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = Color.Black,
                 modifier = Modifier.alpha(alpha.value)
             )
 
@@ -80,7 +80,7 @@ fun SplashScreen(onNext: () -> Unit) {
                 text = "A special messaging space for\nShawon and Saykot.",
                 fontSize = 22.sp,
                 fontFamily = FontFamily.Cursive,
-                color = Color.LightGray,
+                color = Color.Black,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .padding(start = 40.dp, end = 40.dp, top = 8.dp)

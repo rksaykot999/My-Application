@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -20,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,15 +27,18 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rksaykot.myapplication.model.Message
 import com.rksaykot.myapplication.ui.components.MessageBubble
 import com.rksaykot.myapplication.viewmodel.ChatViewModel
+import java.text.SimpleDateFormat
+import java.util.*
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
-    roomId: String, 
+    roomId: String,
     displayName: String,
     onBack: () -> Unit,
     onDetailsClick: () -> Unit,
-    viewModel: ChatViewModel = viewModel()
+    viewModel: ChatViewModel
 ) {
     var messageText by remember { mutableStateOf("") }
     var replyingToMessage by remember { mutableStateOf<Message?>(null) }
@@ -43,14 +46,15 @@ fun ChatScreen(
     var showEditDialog by remember { mutableStateOf<Message?>(null) }
     var editText by remember { mutableStateOf("") }
     var showMenu by remember { mutableStateOf(false) }
-    
+
     val messages = viewModel.messages
     val context = LocalContext.current
     val listState = rememberLazyListState()
 
     val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
-            viewModel.uploadImage(it, "chat_images", 
+            Toast.makeText(context, "Uploading image...", Toast.LENGTH_SHORT).show()
+            viewModel.uploadImage(it, "chat_images",
                 onSuccess = { url ->
                     viewModel.sendMessage(roomId, "", imageUrl = url)
                 },
@@ -61,36 +65,49 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(roomId) {
+    DisposableEffect(roomId) {
+        viewModel.activeRoomId = roomId
         viewModel.listenToMessages(roomId)
+        onDispose {
+            viewModel.activeRoomId = null
+            viewModel.stopListeningToMessages()
+        }
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { 
-                    Column(modifier = Modifier.clickable { onDetailsClick() }) {
-                        Text(displayName)
+            CenterAlignedTopAppBar(
+                title = {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.clickable { onDetailsClick() }
+                    ) {
+                        Text(
+                            displayName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
                         val status = viewModel.selectedUserStatus
                         Text(
                             text = if (status?.isOnline == true) "Online" else "Offline",
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (status?.isOnline == true) Color.Green else Color.Gray
+                            color = if (status?.isOnline == true) Color.Green else Color.Gray,
+                            fontSize = 10.sp
                         )
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    IconButton(onClick = { 
+                    IconButton(onClick = {
                         Toast.makeText(context, "Audio Call feature coming soon!", Toast.LENGTH_SHORT).show()
                     }) { Icon(Icons.Default.Call, contentDescription = "Call") }
                     Box {
-                        IconButton(onClick = { showMenu = true }) { 
-                            Icon(Icons.Default.MoreVert, contentDescription = "More") 
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More")
                         }
                         DropdownMenu(
                             expanded = showMenu,
@@ -106,9 +123,8 @@ fun ChatScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         },
@@ -162,14 +178,14 @@ fun ChatScreen(
                             .padding(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = { imageLauncher.launch("image/*") }) { 
-                            Icon(Icons.Default.Image, contentDescription = "Send Image", tint = MaterialTheme.colorScheme.primary) 
+                        IconButton(onClick = { imageLauncher.launch("image/*") }) {
+                            Icon(Icons.Default.Image, contentDescription = "Send Image", tint = MaterialTheme.colorScheme.primary)
                         }
-                        
+
                         TextField(
                             value = messageText,
-                            onValueChange = { 
-                                messageText = it 
+                            onValueChange = {
+                                messageText = it
                                 viewModel.setTypingStatus(roomId, it.isNotEmpty())
                             },
                             modifier = Modifier.weight(1f),
@@ -197,8 +213,6 @@ fun ChatScreen(
             }
         }
     ) { innerPadding ->
-        // Using reverseLayout = true to make it open at the bottom naturally
-        val reversedMessages = messages.reversed()
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -207,7 +221,7 @@ fun ChatScreen(
             reverseLayout = true,
             contentPadding = PaddingValues(8.dp)
         ) {
-            items(reversedMessages) { message ->
+            items(messages.reversed()) { message ->
                 val replyText = messages.find { it.id == message.replyToId }?.text
                 MessageBubble(
                     message = message,
@@ -237,7 +251,7 @@ fun ChatScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        listOf("❤️", "😂", "😮", "😢", "😡", "👍").forEach { emoji ->
+                        listOf("👍", "❤️", "😂", "😮", "😢", "😡").forEach { emoji ->
                             Text(
                                 text = emoji,
                                 fontSize = 32.sp,
@@ -248,9 +262,9 @@ fun ChatScreen(
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     if (showOptionsDialog!!.reactions.containsKey(viewModel.currentUser?.uid)) {
                         TextButton(
                             onClick = {

@@ -58,7 +58,7 @@ fun UserDetailScreen(
                         .clip(CircleShape),
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
-                    if (user.profileImageUrl.isNotEmpty()) {
+                    if (user.profileImageUrl?.isNotEmpty() == true) {
                         AsyncImage(
                             model = user.profileImageUrl,
                             contentDescription = null,
@@ -102,13 +102,13 @@ fun UserDetailScreen(
 
                 ListItem(
                     headlineContent = { Text("Email") },
-                    supportingContent = { Text(user.email) },
+                    supportingContent = { Text(user.email ?: "No email") },
                     leadingContent = { Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
                 )
                 
                 ListItem(
                     headlineContent = { Text("Bio") },
-                    supportingContent = { Text(if (user.bio.isEmpty()) "No bio yet" else user.bio) },
+                    supportingContent = { Text(user.bio ?: "No bio yet") },
                     leadingContent = { Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
                 )
             }

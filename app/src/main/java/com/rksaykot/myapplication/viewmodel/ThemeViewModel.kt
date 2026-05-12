@@ -1,19 +1,24 @@
 package com.rksaykot.myapplication.viewmodel
 
-import android.app.Application
-import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import android.content.Context
+import android.content.SharedPreferences
 
-class ThemeViewModel(application: Application) : AndroidViewModel(application) {
-    private val prefs = application.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-    var isDarkMode by mutableStateOf(prefs.getBoolean("is_dark_mode", false))
-        private set
-    
+class ThemeViewModel : ViewModel() {
+    var isDarkMode by mutableStateOf(false)
+
+    fun toggleDarkMode() {
+        isDarkMode = !isDarkMode
+    }
+
+    fun updateDarkMode(isDark: Boolean) {
+        isDarkMode = isDark
+    }
+
     fun toggleTheme() {
         isDarkMode = !isDarkMode
-        prefs.edit().putBoolean("is_dark_mode", isDarkMode).apply()
     }
 }

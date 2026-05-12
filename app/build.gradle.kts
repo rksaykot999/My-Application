@@ -17,26 +17,26 @@ fun getAndIncrementVersion(): Pair<Int, String> {
     if (versionPropsFile.exists()) {
         FileInputStream(versionPropsFile).use { props.load(it) }
     }
-    
+
     var currentCode = (props.getProperty("VERSION_CODE", "1").toIntOrNull() ?: 1)
     var currentName = props.getProperty("VERSION_NAME", "1.0")
 
-    val isBuilding = gradle.startParameter.taskNames.any { 
-        it.contains("assemble", ignoreCase = true) || 
-        it.contains("bundle", ignoreCase = true) ||
-        it.contains("install", ignoreCase = true)
+    val isBuilding = gradle.startParameter.taskNames.any {
+        it.contains("assemble", ignoreCase = true) ||
+                it.contains("bundle", ignoreCase = true) ||
+                it.contains("install", ignoreCase = true)
     }
 
     if (isBuilding) {
         currentCode += 1
         val nextName = (currentName.toDoubleOrNull() ?: 1.0) + 0.1
         currentName = String.format("%.1f", nextName)
-        
+
         props.setProperty("VERSION_CODE", currentCode.toString())
         props.setProperty("VERSION_NAME", currentName)
         FileOutputStream(versionPropsFile).use { props.store(it, null) }
     }
-    
+
     return Pair(currentCode, currentName)
 }
 
@@ -85,17 +85,8 @@ android {
     }
 }
 
-// অটোমেটিক আপলোড লজিক সাময়িকভাবে বন্ধ রাখা হয়েছে যাতে বিল্ড এরর না হয়
-// আপনি টার্মিনালে 'firebase login' করে এটি পুনরায় চালু করতে পারেন
-/*
-tasks.configureEach {
-    if (name == "assembleRelease") {
-        finalizedBy("appDistributionUploadRelease")
-    }
-}
-*/
-
 dependencies {
+    // ==================== FIREBASE ====================
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.auth)
@@ -104,8 +95,8 @@ dependencies {
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.appdistribution)
     implementation(libs.play.services.auth)
-    implementation(libs.coil.compose)
 
+    // ==================== COMPOSE ====================
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -114,14 +105,30 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
+
+    // ==================== ANDROIDX ====================
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+
+    // ==================== IMAGE LOADING ====================
+    implementation(libs.coil.compose)
+
+    // ==================== BACKGROUND WORK ====================
+    implementation("androidx.work:work-runtime-ktx:2.8.1")
+
+    // ==================== COROUTINES ====================
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.1")
+
+    // ==================== TESTING ====================
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+
+    // ==================== DEBUG ====================
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

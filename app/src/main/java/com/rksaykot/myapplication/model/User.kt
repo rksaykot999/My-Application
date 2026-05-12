@@ -6,15 +6,19 @@ data class User(
     val uid: String = "",
     val displayName: String = "",
     val email: String = "",
-    val profileImageUrl: String = "",
-    val bio: String = "",
-    val lastMessage: String = "",
-    val lastMessageTime: Long = 0,
-    
-    @get:PropertyName("isOnline")
-    @set:PropertyName("isOnline")
-    var isOnline: Boolean = false,
+    val profileImageUrl: String? = null,
 
-    val lastSeen: Long = 0,
-    val fcmToken: String = ""
+    @get:PropertyName("isOnline")
+    val isOnline: Boolean = false,
+
+    @get:PropertyName("lastSeen")
+    val lastSeen: Long = 0L,
+
+    @get:PropertyName("fcmToken")
+    val fcmToken: String? = null,
+
+    val createdAt: Long = System.currentTimeMillis(),
+    val bio: String? = null,
+    val phoneNumber: String? = null,
+    val status: String? = null
 )

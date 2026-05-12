@@ -1,20 +1,16 @@
 package com.rksaykot.myapplication.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rksaykot.myapplication.viewmodel.ThemeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -22,82 +18,128 @@ import com.rksaykot.myapplication.viewmodel.ThemeViewModel
 fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToPrivacy: () -> Unit,
-    themeViewModel: ThemeViewModel = viewModel(),
+    themeViewModel: ThemeViewModel,
     onNavigateToLanguage: () -> Unit
 ) {
-    var notificationsEnabled by remember { mutableStateOf(true) }
+    var notificationEnabled by remember { mutableStateOf(true) }
     var soundEnabled by remember { mutableStateOf(true) }
-    val context = LocalContext.current
+    var vibrationEnabled by remember { mutableStateOf(true) }
+    var headsUpEnabled by remember { mutableStateOf(true) }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Settings") },
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        "Settings",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(innerPadding),
+            contentPadding = PaddingValues(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Theme Section
             item {
-                SettingsHeader("Appearance")
-                SettingsSwitchItem(
+                SettingsSectionTitle("Appearance")
+            }
+            item {
+                SettingItem(
+                    icon = "🌙",
                     title = "Dark Mode",
-                    icon = Icons.Default.DarkMode,
-                    checked = themeViewModel.isDarkMode,
-                    onCheckedChange = { themeViewModel.toggleTheme() }
+                    description = "Enable dark theme",
+                    isToggle = true,
+                    isEnabled = themeViewModel.isDarkMode,
+                    onToggle = { themeViewModel.toggleTheme() }
                 )
             }
 
+            // Notification Settings
             item {
-                SettingsHeader("Notifications")
-                SettingsSwitchItem(
+                SettingsSectionTitle("Notifications")
+            }
+            item {
+                SettingItem(
+                    icon = "🔔",
                     title = "Enable Notifications",
-                    icon = Icons.Default.Notifications,
-                    checked = notificationsEnabled,
-                    onCheckedChange = { notificationsEnabled = it }
+                    description = "Receive message notifications",
+                    isToggle = true,
+                    isEnabled = notificationEnabled,
+                    onToggle = { notificationEnabled = it }
                 )
-                SettingsSwitchItem(
-                    title = "Sound",
-                    icon = Icons.AutoMirrored.Filled.VolumeUp,
-                    checked = soundEnabled,
-                    onCheckedChange = { soundEnabled = it },
-                    enabled = notificationsEnabled
+            }
+            item {
+                SettingItem(
+                    icon = "🔊",
+                    title = "Notification Sound",
+                    description = "Play sound with notifications",
+                    isToggle = true,
+                    isEnabled = soundEnabled,
+                    onToggle = { soundEnabled = it },
+                    enabled = notificationEnabled
+                )
+            }
+            item {
+                SettingItem(
+                    icon = "📳",
+                    title = "Vibration",
+                    description = "Vibrate on new message",
+                    isToggle = true,
+                    isEnabled = vibrationEnabled,
+                    onToggle = { vibrationEnabled = it },
+                    enabled = notificationEnabled
+                )
+            }
+            item {
+                SettingItem(
+                    icon = "👁️",
+                    title = "Heads-Up Notifications",
+                    description = "Show popup for incoming messages",
+                    isToggle = true,
+                    isEnabled = headsUpEnabled,
+                    onToggle = { headsUpEnabled = it },
+                    enabled = notificationEnabled
                 )
             }
 
+            // General Settings
             item {
-                SettingsHeader("System & Privacy")
-                SettingsClickItem(
+                SettingsSectionTitle("General")
+            }
+            item {
+                SettingItemClickable(
+                    icon = "📜",
                     title = "Privacy Policy",
-                    icon = Icons.Default.PrivacyTip,
+                    description = "Read our privacy policy",
                     onClick = onNavigateToPrivacy
                 )
-                SettingsClickItem(
-                    title = "Clear Cache",
-                    icon = Icons.Default.DeleteSweep,
-                    onClick = { 
-                        Toast.makeText(context, "Cache cleared successfully!", Toast.LENGTH_SHORT).show()
-                    }
-                )
             }
 
+            // App Info
             item {
-                SettingsHeader("About")
-                SettingsClickItem(
+                SettingsSectionTitle("About")
+            }
+            item {
+                SettingItem(
+                    icon = "ℹ️",
                     title = "App Version",
-                    subtitle = "1.0.0 (Stable)",
-                    icon = Icons.Default.Info,
-                    onClick = { 
-                        Toast.makeText(context, "You are using the latest version.", Toast.LENGTH_SHORT).show()
-                    }
+                    description = "1.0.0",
+                    isClickable = false
                 )
             }
         }
@@ -105,49 +147,118 @@ fun SettingsScreen(
 }
 
 @Composable
-fun SettingsHeader(title: String) {
+fun SettingsSectionTitle(title: String) {
     Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge,
+        title,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp)
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
     )
 }
 
 @Composable
-fun SettingsSwitchItem(
+fun SettingItem(
+    icon: String,
     title: String,
-    icon: ImageVector,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    enabled: Boolean = true
+    description: String,
+    isToggle: Boolean = false,
+    isEnabled: Boolean = true,
+    enabled: Boolean = true,
+    isClickable: Boolean = true,
+    onToggle: ((Boolean) -> Unit)? = null,
+    onClick: (() -> Unit)? = null
 ) {
-    ListItem(
-        headlineContent = { Text(title) },
-        leadingContent = { Icon(icon, contentDescription = null) },
-        trailingContent = {
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                enabled = enabled
-            )
-        },
-        modifier = Modifier.clickable(enabled = enabled) { onCheckedChange(!checked) }
-    )
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(icon, style = MaterialTheme.typography.headlineMedium)
+                Column {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (isToggle) {
+                Switch(
+                    checked = isEnabled,
+                    onCheckedChange = { onToggle?.invoke(it) },
+                    enabled = enabled
+                )
+            }
+        }
+    }
 }
 
 @Composable
-fun SettingsClickItem(
+fun SettingItemClickable(
+    icon: String,
     title: String,
-    subtitle: String? = null,
-    icon: ImageVector,
+    description: String,
     onClick: () -> Unit
 ) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = subtitle?.let { { Text(it) } },
-        leadingContent = { Icon(icon, contentDescription = null) },
-        trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
-        modifier = Modifier.clickable { onClick() }
-    )
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .clickable { onClick() },
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(icon, style = MaterialTheme.typography.headlineMedium)
+                Column {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Text("→", style = MaterialTheme.typography.titleLarge)
+        }
+    }
 }

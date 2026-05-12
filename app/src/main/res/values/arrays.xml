@@ -1,0 +1,7 @@
+<resources>
+    <string-array name="preloaded_fonts">
+        <!-- Add your font file names here, e.g. -->
+        <item>font/roboto_regular.ttf</item>
+    </string-array>
+</resources>
+

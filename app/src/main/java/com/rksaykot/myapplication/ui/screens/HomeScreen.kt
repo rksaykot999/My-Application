@@ -1,6 +1,5 @@
 package com.rksaykot.myapplication.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,23 +7,23 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.rksaykot.myapplication.model.User
 import com.rksaykot.myapplication.viewmodel.ChatViewModel
 
@@ -35,197 +34,310 @@ fun HomeScreen(
     onLogout: () -> Unit,
     onSettingsClick: () -> Unit,
     onProfileClick: () -> Unit,
-    viewModel: ChatViewModel = viewModel()
+    viewModel: ChatViewModel
 ) {
-    var showMenu by remember { mutableStateOf(false) }
-    var showAddDialog by remember { mutableStateOf(false) }
-    var friendEmail by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-    
-    val context = LocalContext.current
-    
-    LaunchedEffect(viewModel.currentUser) {
-        viewModel.fetchAllUsers()
-    }
+    var showAddContactDialog by remember { mutableStateOf(false) }
+    var showMenuDialog by remember { mutableStateOf(false) }
 
-    val filteredUsers = if (searchQuery.isEmpty()) {
-        viewModel.users
-    } else {
-        viewModel.users.filter { 
-            it.displayName.contains(searchQuery, ignoreCase = true) || 
-            it.email.contains(searchQuery, ignoreCase = true) 
-        }
+    LaunchedEffect(Unit) {
+        viewModel.fetchAllUsers()
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { 
-                    if (isSearchActive) {
-                        TextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = { Text("Search friends...") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
-                            )
-                        )
-                    } else {
-                        Text(text = "Best Friend", fontWeight = FontWeight.Bold)
-                    }
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        "Messages",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                 },
                 actions = {
-                    IconButton(onClick = { 
-                        isSearchActive = !isSearchActive 
-                        if (!isSearchActive) searchQuery = ""
-                    }) { 
-                        Icon(
-                            imageVector = if (isSearchActive) Icons.Default.Close else Icons.Default.Search, 
-                            contentDescription = null
-                        ) 
+                    IconButton(onClick = { showMenuDialog = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "More")
                     }
-                    Box {
-                        IconButton(onClick = { showMenu = true }) { 
-                            Icon(Icons.Default.MoreVert, contentDescription = null) 
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            DropdownMenuItem(text = { Text("Profile") }, onClick = { showMenu = false; onProfileClick() })
-                            DropdownMenuItem(text = { Text("Settings") }, onClick = { showMenu = false; onSettingsClick() })
-                            DropdownMenuItem(
-                                text = { Text("Logout", color = Color.Red) },
-                                onClick = { 
-                                    showMenu = false
-                                    viewModel.logout()
-                                    onLogout()
-                                }
-                            )
-                        }
-                    }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Add Friend")
+            FloatingActionButton(
+                onClick = { showAddContactDialog = true },
+                containerColor = MaterialTheme.colorScheme.primary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Contact")
             }
         }
     ) { innerPadding ->
-        if (viewModel.users.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
-                Text("No friends yet. Add one by email!", color = Color.Gray)
-            }
-        } else {
-            LazyColumn(modifier = Modifier.padding(innerPadding)) {
-                items(filteredUsers) { user ->
-                    val myUid = viewModel.currentUser?.uid ?: ""
-                    val peerUid = user.uid
-                    val roomId = if (myUid < peerUid) "${myUid}_${peerUid}" else "${peerUid}_${myUid}"
-                    val lastMsg = viewModel.lastMessages[roomId] ?: user.lastMessage
-
-                    UserItem(user, lastMsg, user.isOnline) {
-                        onContactClick(roomId, user.displayName)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            if (viewModel.users.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "No contacts yet",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Add a contact to start messaging",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    Box(modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 72.dp, end = 16.dp)
-                        .height(0.5.dp)
-                        .background(MaterialTheme.colorScheme.outlineVariant)
-                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(viewModel.users) { user ->
+                        val roomId = generateRoomId(viewModel.currentUser?.uid ?: "", user.uid)
+                        ContactItem(
+                            user = user,
+                            lastMessage = viewModel.lastMessages[roomId],
+                            isUnread = viewModel.unreadRooms[roomId] ?: false,
+                            onContactClick = {
+                                onContactClick(roomId, user.displayName)
+                            }
+                        )
+                    }
                 }
             }
         }
+    }
 
-        if (showAddDialog) {
-            AlertDialog(
-                onDismissRequest = { showAddDialog = false },
-                title = { Text("Add Friend") },
-                text = {
-                    OutlinedTextField(
-                        value = friendEmail,
-                        onValueChange = { friendEmail = it },
-                        label = { Text("Friend's Email") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                confirmButton = {
-                    Button(onClick = {
-                        viewModel.findUserByEmail(friendEmail, 
-                            onSuccess = { user ->
-                                val myUid = viewModel.currentUser?.uid ?: ""
-                                val peerUid = user.uid
-                                val roomId = if (myUid < peerUid) "${myUid}_${peerUid}" else "${peerUid}_${myUid}"
-                                onContactClick(roomId, user.displayName)
-                                showAddDialog = false
-                            },
-                            onError = { 
-                                Toast.makeText(context, "User not found", Toast.LENGTH_SHORT).show()
-                            }
+    if (showAddContactDialog) {
+        AddContactDialog(
+            onDismiss = { showAddContactDialog = false },
+            onAdd = { email ->
+                viewModel.findUserByEmail(email,
+                    onSuccess = { showAddContactDialog = false },
+                    onError = { }
+                )
+            }
+        )
+    }
+
+    if (showMenuDialog) {
+        MenuDialog(
+            onDismiss = { showMenuDialog = false },
+            onSettings = {
+                showMenuDialog = false
+                onSettingsClick()
+            },
+            onProfile = {
+                showMenuDialog = false
+                onProfileClick()
+            },
+            onLogout = {
+                showMenuDialog = false
+                viewModel.logout()
+                onLogout()
+            }
+        )
+    }
+}
+
+@Composable
+fun ContactItem(
+    user: User,
+    lastMessage: String? = null,
+    isUnread: Boolean = false,
+    onContactClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onContactClick() }
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Profile Image with Online Status Bubble
+            Box {
+                Surface(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape),
+                    color = MaterialTheme.colorScheme.primary
+                ) {
+                    if (user.profileImageUrl?.isNotEmpty() == true) {
+                        AsyncImage(
+                            model = user.profileImageUrl,
+                            contentDescription = user.displayName,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
                         )
-                    }) { Text("Add") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showAddDialog = false }) { Text("Cancel") }
+                    } else {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                user.displayName.firstOrNull()?.uppercaseChar().toString(),
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
-            )
+                // Online/Offline Status Bubble
+                Box(
+                    modifier = Modifier
+                        .size(14.dp)
+                        .align(Alignment.BottomEnd)
+                        .clip(CircleShape)
+                        .background(if (user.isOnline) Color.Green else Color.Gray)
+                        .border(2.dp, MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                )
+            }
+
+            // Info Column
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    user.displayName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                // Last message or bio
+                Text(
+                    text = if (lastMessage?.isNotEmpty() == true) {
+                        lastMessage.take(50) + if (lastMessage.length > 50) "..." else ""
+                    } else {
+                        user.bio?.ifEmpty { "Tap to chat" } ?: "Tap to chat"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = if (isUnread) FontWeight.Bold else FontWeight.Normal
+                )
+            }
+
+            // Unread message indicator (Blue Dot)
+            if (isUnread) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                )
+            }
         }
     }
 }
 
 @Composable
-fun UserItem(user: User, lastMessage: String, isOnline: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box {
-            Surface(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape),
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Box(contentAlignment = Alignment.Center) {
+fun AddContactDialog(
+    onDismiss: () -> Unit,
+    onAdd: (String) -> Unit
+) {
+    var email by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Contact") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Enter contact email address", style = MaterialTheme.typography.bodyMedium)
+                TextField(
+                    value = email,
+                    onValueChange = {
+                        email = it
+                        errorMessage = ""
+                    },
+                    label = { Text("Email") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    isError = errorMessage.isNotEmpty()
+                )
+                if (errorMessage.isNotEmpty()) {
                     Text(
-                        text = user.displayName.take(1).uppercase(),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        errorMessage,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
-            // Online/Offline Status Bubble
-            Box(
-                modifier = Modifier
-                    .size(14.dp)
-                    .align(Alignment.BottomEnd)
-                    .clip(CircleShape)
-                    .background(if (isOnline) Color.Green else Color.Gray)
-                    .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
-            )
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (email.isNotBlank() && android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                        onAdd(email)
+                    } else {
+                        errorMessage = "Invalid email"
+                    }
+                }
+            ) {
+                Text("Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
         }
+    )
+}
 
-        Spacer(modifier = Modifier.width(16.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = user.displayName, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-            Text(
-                text = if (lastMessage.isNotEmpty()) lastMessage else "Tap to chat",
-                color = Color.Gray,
-                fontSize = 14.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+@Composable
+fun MenuDialog(
+    onDismiss: () -> Unit,
+    onSettings: () -> Unit,
+    onProfile: () -> Unit,
+    onLogout: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Menu") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onProfile, modifier = Modifier.fillMaxWidth()) {
+                    Text("👤 Profile", modifier = Modifier.fillMaxWidth())
+                }
+                TextButton(onClick = onSettings, modifier = Modifier.fillMaxWidth()) {
+                    Text("⚙️ Settings", modifier = Modifier.fillMaxWidth())
+                }
+                TextButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
+                    Text("🚪 Logout", modifier = Modifier.fillMaxWidth())
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onDismiss() }) {
+                Text("Close")
+            }
         }
-    }
+    )
+}
+
+private fun generateRoomId(uid1: String, uid2: String): String {
+    return if (uid1 < uid2) "${uid1}_${uid2}" else "${uid2}_${uid1}"
 }
