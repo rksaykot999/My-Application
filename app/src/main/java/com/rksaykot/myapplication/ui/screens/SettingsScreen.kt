@@ -127,7 +127,7 @@ fun SettingsScreen(
                     SettingsClickableItem(
                         icon = Icons.Outlined.Info,
                         title = "App Version",
-                        description = "Current version: 3.1.0",
+                        description = "Current version: 3.2.0",
                         onClick = {}
                     )
                     HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)

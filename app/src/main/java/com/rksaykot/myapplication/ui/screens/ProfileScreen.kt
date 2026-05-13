@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -21,6 +22,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -51,9 +53,9 @@ fun ProfileScreen(
     var showConfirmDelete by remember { mutableStateOf(false) }
 
     // Input States
-    var newName by remember { mutableStateOf(user?.displayName ?: "") }
-    var newPhone by remember { mutableStateOf(user?.phoneNumber ?: "") }
-    var selectedGender by remember { mutableStateOf(user?.gender ?: "Male") }
+    var newName by remember(user?.displayName) { mutableStateOf(user?.displayName ?: "") }
+    var newPhone by remember(user?.phoneNumber) { mutableStateOf(user?.phoneNumber ?: "") }
+    var selectedGender by remember(user?.gender) { mutableStateOf(user?.gender ?: "Male") }
 
     Scaffold(
         topBar = {
@@ -72,273 +74,291 @@ fun ProfileScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(bottom = 32.dp)
-        ) {
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(contentAlignment = Alignment.BottomEnd) {
-                        Surface(
-                            modifier = Modifier
-                                .size(120.dp)
-                                .shadow(12.dp, CircleShape),
-                            shape = CircleShape,
-                            color = Color(0xFF546081), // Matching the desaturated blue from image_9bfdbf.png
-                            border = BorderStroke(4.dp, MaterialTheme.colorScheme.surface)
-                        ) {
-                            if (user != null && !user.profileImageUrl.isNullOrEmpty()) {
-                                AsyncImage(
-                                    model = user.profileImageUrl,
-                                    contentDescription = "Profile Image",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    Icon(
-                                        imageVector = if (user?.gender?.lowercase() == "female")
-                                            Icons.Default.Woman
-                                        else
-                                            Icons.Default.Person,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(72.dp),
-                                        tint = Color(0xFFD1D9FF) // Light lavender-blue tint from image
+        if (user == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentPadding = PaddingValues(bottom = 32.dp)
+            ) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(contentAlignment = Alignment.BottomEnd) {
+                            Surface(
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .shadow(12.dp, CircleShape),
+                                shape = CircleShape,
+                                color = Color(0xFF546081),
+                                border = BorderStroke(4.dp, MaterialTheme.colorScheme.surface)
+                            ) {
+                                if (user.profileImageUrl.isNotEmpty()) {
+                                    AsyncImage(
+                                        model = user.profileImageUrl,
+                                        contentDescription = "Profile Image",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
                                     )
+                                } else {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        Icon(
+                                            imageVector = if (user.gender.lowercase() == "female")
+                                                Icons.Default.Woman
+                                            else
+                                                Icons.Default.Person,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(72.dp),
+                                            tint = Color(0xFFD1D9FF)
+                                        )
+                                    }
                                 }
                             }
-                        }
 
-                        // Online Status Indicator
-                        Surface(
-                            modifier = Modifier.size(28.dp).offset(x = (-4).dp, y = (-4).dp),
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 2.dp
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .padding(4.dp)
-                                    .fillMaxSize()
-                                    .background(
-                                        if (user?.isOnline == true) Color(0xFF4CAF50) else Color.Gray,
-                                        CircleShape
-                                    )
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = user?.displayName ?: "User",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = user?.email ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    val statusText = if (user?.isOnline == true) {
-                        "Active Now"
-                    } else {
-                        val format = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
-                        "Last seen: ${format.format(Date(user?.lastSeen ?: 0L))}"
-                    }
-
-                    Text(
-                        text = statusText,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (user?.isOnline == true) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                }
-            }
-
-            item {
-                ProfileSectionHeader("Personal Info")
-                ProfileGroup {
-                    ProfileOptionItem(
-                        title = "Display Name",
-                        value = user?.displayName.takeIf { !it.isNullOrBlank() } ?: "Set name",
-                        icon = Icons.Outlined.Person,
-                        onClick = {
-                            newName = user?.displayName ?: ""
-                            showEditNameDialog = true
-                        }
-                    )
-                    ProfileDivider()
-                    ProfileOptionItem(
-                        title = "Phone Number",
-                        value = user?.phoneNumber.takeIf { !it.isNullOrBlank() } ?: "Not provided",
-                        icon = Icons.Outlined.Phone,
-                        onClick = {
-                            newPhone = user?.phoneNumber ?: ""
-                            showEditPhoneDialog = true
-                        }
-                    )
-                    ProfileDivider()
-                    ProfileOptionItem(
-                        title = "Gender",
-                        value = user?.gender?.takeIf { it.isNotBlank() }?.replaceFirstChar { it.uppercase() } ?: "Not specified",
-                        icon = Icons.Outlined.Wc,
-                        onClick = {
-                            selectedGender = user?.gender ?: "Male"
-                            showEditGenderDialog = true
-                        }
-                    )
-                }
-            }
-
-            item {
-                ProfileSectionHeader("Account Actions")
-                ProfileGroup {
-                    ProfileOptionItem(
-                        title = "Logout",
-                        icon = Icons.Outlined.ExitToApp,
-                        iconColor = MaterialTheme.colorScheme.error,
-                        textColor = MaterialTheme.colorScheme.error,
-                        onClick = { showConfirmLogout = true }
-                    )
-                    ProfileDivider()
-                    ProfileOptionItem(
-                        title = "Delete Account",
-                        description = "Permanently remove your data",
-                        icon = Icons.Outlined.DeleteForever,
-                        iconColor = MaterialTheme.colorScheme.error,
-                        textColor = MaterialTheme.colorScheme.error,
-                        onClick = { showConfirmDelete = true }
-                    )
-                }
-            }
-        }
-
-        if (showEditNameDialog) {
-            AlertDialog(
-                onDismissRequest = { showEditNameDialog = false },
-                title = { Text("Edit Display Name", fontWeight = FontWeight.Bold) },
-                text = {
-                    OutlinedTextField(
-                        value = newName,
-                        onValueChange = { newName = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("New Name") },
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                },
-                confirmButton = {
-                    Button(onClick = {
-                        if (newName.isNotBlank()) {
-                            viewModel.updateDisplayName(newName, {
-                                Toast.makeText(context, "Updated!", Toast.LENGTH_SHORT).show()
-                                showEditNameDialog = false
-                            }, { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() })
-                        }
-                    }) { Text("Save") }
-                },
-                dismissButton = { TextButton(onClick = { showEditNameDialog = false }) { Text("Cancel") } }
-            )
-        }
-
-        if (showEditPhoneDialog) {
-            AlertDialog(
-                onDismissRequest = { showEditPhoneDialog = false },
-                title = { Text("Update Phone Number", fontWeight = FontWeight.Bold) },
-                text = {
-                    OutlinedTextField(
-                        value = newPhone,
-                        onValueChange = { newPhone = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Phone Number") },
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                },
-                confirmButton = {
-                    Button(onClick = {
-                        // Note: Ensure this function is added to your ViewModel
-                        viewModel.updateDisplayName(newPhone, { // Re-using logic or unique method
-                            Toast.makeText(context, "Phone updated!", Toast.LENGTH_SHORT).show()
-                            showEditPhoneDialog = false
-                        }, { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() })
-                    }) { Text("Save") }
-                },
-                dismissButton = { TextButton(onClick = { showEditPhoneDialog = false }) { Text("Cancel") } }
-            )
-        }
-
-        if (showEditGenderDialog) {
-            AlertDialog(
-                onDismissRequest = { showEditGenderDialog = false },
-                title = { Text("Select Gender", fontWeight = FontWeight.Bold) },
-                text = {
-                    Column {
-                        listOf("Male", "Female", "Other").forEach { gender ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { selectedGender = gender }
-                                    .padding(vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            // Online Status Indicator
+                            Surface(
+                                modifier = Modifier.size(28.dp).offset(x = (-4).dp, y = (-4).dp),
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surface,
+                                tonalElevation = 2.dp
                             ) {
-                                RadioButton(selected = selectedGender == gender, onClick = { selectedGender = gender })
-                                Text(gender, modifier = Modifier.padding(start = 8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .padding(4.dp)
+                                        .fillMaxSize()
+                                        .background(
+                                            if (user.isOnline) Color(0xFF4CAF50) else Color.Gray,
+                                            CircleShape
+                                        )
+                                )
                             }
                         }
-                    }
-                },
-                confirmButton = {
-                    Button(onClick = {
-                        // Logic to update gender
-                        showEditGenderDialog = false
-                    }) { Text("Save") }
-                },
-                dismissButton = { TextButton(onClick = { showEditGenderDialog = false }) { Text("Cancel") } }
-            )
-        }
 
-        if (showConfirmLogout) {
-            AlertDialog(
-                onDismissRequest = { showConfirmLogout = false },
-                title = { Text("Logout?") },
-                text = { Text("Are you sure you want to sign out?") },
-                confirmButton = {
-                    Button(onClick = {
-                        viewModel.logout()
-                        onLogoutSuccess()
-                    }) { Text("Logout") }
-                },
-                dismissButton = { TextButton(onClick = { showConfirmLogout = false }) { Text("Cancel") } }
-            )
-        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = user.displayName.ifBlank { "User" },
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = user.email,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
-        if (showConfirmDelete) {
-            AlertDialog(
-                onDismissRequest = { showConfirmDelete = false },
-                title = { Text("Delete Account?", color = MaterialTheme.colorScheme.error) },
-                text = { Text("This action is permanent and cannot be undone. All your chats and data will be lost.") },
-                confirmButton = {
-                    Button(
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                        onClick = {
-                            viewModel.deleteAccount({ onLogoutSuccess() }, { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() })
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        val locale = LocalConfiguration.current.locale
+                        val statusText = if (user.isOnline) {
+                            "Active Now"
+                        } else {
+                            val format = SimpleDateFormat("MMM d, h:mm a", locale)
+                            "Last seen: ${format.format(Date(user.lastSeen))}"
                         }
-                    ) { Text("Delete Permanently") }
-                },
-                dismissButton = { TextButton(onClick = { showConfirmDelete = false }) { Text("Cancel") } }
-            )
+
+                        Text(
+                            text = statusText,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (user.isOnline) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+
+                item {
+                    ProfileSectionHeader("Personal Info")
+                    ProfileGroup {
+                        ProfileOptionItem(
+                            title = "Display Name",
+                            value = user.displayName.takeIf { it.isNotBlank() } ?: "Set name",
+                            icon = Icons.Outlined.Person,
+                            onClick = {
+                                newName = user.displayName
+                                showEditNameDialog = true
+                            }
+                        )
+                        ProfileDivider()
+                        ProfileOptionItem(
+                            title = "Phone Number",
+                            value = user.phoneNumber.takeIf { it.isNotBlank() } ?: "Not provided",
+                            icon = Icons.Outlined.Phone,
+                            onClick = {
+                                newPhone = user.phoneNumber
+                                showEditPhoneDialog = true
+                            }
+                        )
+                        ProfileDivider()
+                        ProfileOptionItem(
+                            title = "Gender",
+                            value = user.gender.takeIf { it.isNotBlank() }?.replaceFirstChar { it.uppercase() } ?: "Not specified",
+                            icon = Icons.Outlined.Wc,
+                            onClick = {
+                                selectedGender = user.gender.ifBlank { "Male" }
+                                showEditGenderDialog = true
+                            }
+                        )
+                    }
+                }
+
+                item {
+                    ProfileSectionHeader("Account Actions")
+                    ProfileGroup {
+                        ProfileOptionItem(
+                            title = "Privacy Policy",
+                            description = "How we handle your data",
+                            icon = Icons.Outlined.Description,
+                            onClick = onNavigateToPrivacy
+                        )
+                        ProfileDivider()
+                        ProfileOptionItem(
+                            title = "Logout",
+                            icon = Icons.AutoMirrored.Filled.ExitToApp,
+                            iconColor = MaterialTheme.colorScheme.error,
+                            textColor = MaterialTheme.colorScheme.error,
+                            onClick = { showConfirmLogout = true }
+                        )
+                        ProfileDivider()
+                        ProfileOptionItem(
+                            title = "Delete Account",
+                            description = "Permanently remove your data",
+                            icon = Icons.Outlined.DeleteForever,
+                            iconColor = MaterialTheme.colorScheme.error,
+                            textColor = MaterialTheme.colorScheme.error,
+                            onClick = { showConfirmDelete = true }
+                        )
+                    }
+                }
+            }
         }
+    }
+
+    // Dialogs
+    if (showEditNameDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditNameDialog = false },
+            title = { Text("Edit Display Name", fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("New Name") },
+                    shape = RoundedCornerShape(12.dp)
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (newName.isNotBlank()) {
+                        viewModel.updateDisplayName(newName, {
+                            Toast.makeText(context, "Updated!", Toast.LENGTH_SHORT).show()
+                            showEditNameDialog = false
+                        }, { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() })
+                    }
+                }) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = { showEditNameDialog = false }) { Text("Cancel") } }
+        )
+    }
+
+    if (showEditPhoneDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditPhoneDialog = false },
+            title = { Text("Update Phone Number", fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = newPhone,
+                    onValueChange = { newPhone = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Phone Number") },
+                    shape = RoundedCornerShape(12.dp)
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.updateDisplayName(newPhone, {
+                        Toast.makeText(context, "Phone updated!", Toast.LENGTH_SHORT).show()
+                        showEditPhoneDialog = false
+                    }, { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() })
+                }) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = { showEditPhoneDialog = false }) { Text("Cancel") } }
+        )
+    }
+
+    if (showEditGenderDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditGenderDialog = false },
+            title = { Text("Select Gender", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    listOf("Male", "Female", "Other").forEach { gender ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedGender = gender }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = selectedGender == gender, onClick = { selectedGender = gender })
+                            Text(gender, modifier = Modifier.padding(start = 8.dp))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    showEditGenderDialog = false
+                }) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = { showEditGenderDialog = false }) { Text("Cancel") } }
+        )
+    }
+
+    if (showConfirmLogout) {
+        AlertDialog(
+            onDismissRequest = { showConfirmLogout = false },
+            title = { Text("Logout?") },
+            text = { Text("Are you sure you want to sign out?") },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.logout()
+                    onLogoutSuccess()
+                }) { Text("Logout") }
+            },
+            dismissButton = { TextButton(onClick = { showConfirmLogout = false }) { Text("Cancel") } }
+        )
+    }
+
+    if (showConfirmDelete) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDelete = false },
+            title = { Text("Delete Account?", color = MaterialTheme.colorScheme.error) },
+            text = { Text("This action is permanent and cannot be undone. All your chats and data will be lost.") },
+            confirmButton = {
+                Button(
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    onClick = {
+                        viewModel.deleteAccount({ onLogoutSuccess() }, { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() })
+                    }
+                ) { Text("Delete Permanently") }
+            },
+            dismissButton = { TextButton(onClick = { showConfirmDelete = false }) { Text("Cancel") } }
+        )
     }
 }
 
